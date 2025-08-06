@@ -46,14 +46,9 @@ func matchLine(line []byte, pattern string) (bool, error) {
 
 	switch pattern {
 	case "\\d":
-		{
-			for _, b := range line {
-				if b >= '0' && b <= '9' {
-					ok = true
-					break
-				}
-			}
-		}
+		ok = bytes.ContainsAny(line, "0123456789")
+	case "\\w":
+		ok = bytes.ContainsAny(line, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
 	default:
 		ok = bytes.ContainsAny(line, pattern)
 	}
