@@ -62,6 +62,16 @@ func matchLine(line []byte, pattern string) (bool, error) {
 			}
 		case '[':
 			i++
+			if i >= len(pattern) {
+				return false, fmt.Errorf("unmatched '[' in pattern")
+			}
+
+			var negative bool
+			if pattern[i] == '^' {
+				i++
+				negative = true
+			}
+
 			start := i
 			for i < len(pattern) && pattern[i] != ']' {
 				i++
@@ -74,7 +84,18 @@ func matchLine(line []byte, pattern string) (bool, error) {
 				return false, fmt.Errorf("empty character group in pattern")
 			}
 			charGroup := pattern[start:end]
-			ok = bytes.ContainsAny(line, charGroup)
+			if negative {
+				// Check if at least one character in the line does not match the character group
+				for _, char := range line {
+					if !bytes.ContainsRune([]byte(charGroup), rune(char)) {
+						ok = true // at least one character does not match
+						break
+					}
+				}
+
+			} else {
+				ok = bytes.ContainsAny(line, charGroup)
+			}
 		default:
 			if !bytes.ContainsRune(line, rune(pattern[i])) {
 				return false, nil // no match found
