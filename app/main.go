@@ -44,13 +44,45 @@ func matchLine(line []byte, pattern string) (bool, error) {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Fprintln(os.Stderr, "Logs from your program will appear here!")
 
-	switch pattern {
-	case "\\d":
-		ok = bytes.ContainsAny(line, "0123456789")
-	case "\\w":
-		ok = bytes.ContainsAny(line, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
-	default:
-		ok = bytes.ContainsAny(line, pattern)
+	var i int
+	for i < len(pattern) {
+		switch pattern[i] {
+		case '\\':
+			i++
+			if i >= len(pattern) {
+				return false, fmt.Errorf("incomplete escape sequence at end of pattern")
+			}
+			switch pattern[i] {
+			case 'd':
+				ok = bytes.ContainsAny(line, "0123456789")
+			case 'w':
+				ok = bytes.ContainsAny(line, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+			default:
+				return false, fmt.Errorf("unknown escape sequence: \\%c", pattern[i])
+			}
+		case '[':
+			i++
+			start := i
+			for i < len(pattern) && pattern[i] != ']' {
+				i++
+			}
+			if i >= len(pattern) || pattern[i] != ']' {
+				return false, fmt.Errorf("unmatched '[' in pattern")
+			}
+			end := i
+			if start >= end {
+				return false, fmt.Errorf("empty character group in pattern")
+			}
+			charGroup := pattern[start:end]
+			ok = bytes.ContainsAny(line, charGroup)
+		default:
+			if !bytes.ContainsRune(line, rune(pattern[i])) {
+				return false, nil // no match found
+			} else {
+				ok = true // at least one character matched
+			}
+		}
+		i++
 	}
 
 	return ok, nil
