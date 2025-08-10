@@ -35,6 +35,12 @@ func main() {
 	// default exit code is 0 which means success
 }
 
+type Regex struct {
+	matchStart bool
+	matchEnd   bool
+	tokens     []RE
+}
+
 type RE struct {
 	classType classType
 	chars     []byte
@@ -55,11 +61,13 @@ var (
 	wordChars  = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
 )
 
-func Compile(pattern string) ([]RE, error) {
+func Compile(pattern string) (*Regex, error) {
 	var (
 		i     int
 		n     = len(pattern)
-		regex = []RE{}
+		regex = &Regex{
+			tokens: []RE{},
+		}
 	)
 
 	for i < n {
@@ -71,12 +79,12 @@ func Compile(pattern string) ([]RE, error) {
 			}
 			switch pattern[i] {
 			case 'd':
-				regex = append(regex, RE{classType: classTypeDigit, chars: digitChars})
+				regex.tokens = append(regex.tokens, RE{classType: classTypeDigit, chars: digitChars})
 			case 'w':
-				regex = append(regex, RE{classType: classTypeWord, chars: wordChars})
+				regex.tokens = append(regex.tokens, RE{classType: classTypeWord, chars: wordChars})
 			default:
 				// Treat as a literal character
-				regex = append(regex, RE{
+				regex.tokens = append(regex.tokens, RE{
 					classType: classTypeChar,
 					chars:     []byte{pattern[i]},
 				})
@@ -110,9 +118,19 @@ func Compile(pattern string) ([]RE, error) {
 			}
 			re.chars = []byte(pattern[start:i])
 
-			regex = append(regex, re)
+			regex.tokens = append(regex.tokens, re)
+		case '^':
+			regex.matchStart = true
+			if i > 0 {
+				return nil, fmt.Errorf("caret '^' must be at the start of the pattern")
+			}
+		case '$':
+			regex.matchEnd = true
+			if i < n-1 {
+				return nil, fmt.Errorf("dollar '$' must be at the end of the pattern")
+			}
 		default:
-			regex = append(regex, RE{
+			regex.tokens = append(regex.tokens, RE{
 				classType: classTypeChar,
 				chars:     []byte{pattern[i]},
 			})
@@ -123,11 +141,15 @@ func Compile(pattern string) ([]RE, error) {
 	return regex, nil
 }
 
-func match(regex []RE, line []byte) bool {
+func match(regex *Regex, line []byte) bool {
 	var i int
 
+	if regex.matchStart {
+		return matchHere(regex.tokens, line)
+	}
+
 	for i < len(line) {
-		if matchHere(regex, line[i:]) {
+		if matchHere(regex.tokens, line[i:]) {
 			return true
 		}
 
