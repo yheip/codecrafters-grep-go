@@ -37,7 +37,6 @@ func main() {
 
 type Regex struct {
 	matchStart bool
-	matchEnd   bool
 	tokens     []RE
 }
 
@@ -54,6 +53,7 @@ const (
 	classTypeCharGroup
 	classTypeDigit
 	classTypeWord
+	classTypeEndAnchor
 )
 
 var (
@@ -125,7 +125,9 @@ func Compile(pattern string) (*Regex, error) {
 				return nil, fmt.Errorf("caret '^' must be at the start of the pattern")
 			}
 		case '$':
-			regex.matchEnd = true
+			regex.tokens = append(regex.tokens, RE{
+				classType: classTypeEndAnchor,
+			})
 			if i < n-1 {
 				return nil, fmt.Errorf("dollar '$' must be at the end of the pattern")
 			}
@@ -162,6 +164,12 @@ func match(regex *Regex, line []byte) bool {
 func matchHere(regex []RE, line []byte) bool {
 	if len(regex) == 0 {
 		return true // empty regex matches everything
+	}
+
+	// if the first token is an end anchor
+	// it must match the end of the line
+	if regex[0].classType == classTypeEndAnchor && len(regex) == 1 {
+		return len(line) == 0 // end anchor matches only if line is empty
 	}
 
 	if len(line) == 0 {

@@ -117,7 +117,7 @@ func Test_matchLine(t *testing.T) {
 		}
 	})
 
-	t.Run("matching start of string anchor", func(t *testing.T) {
+	t.Run("match start of string anchor", func(t *testing.T) {
 		tests := []struct {
 			line     string
 			pattern  string
@@ -125,6 +125,21 @@ func Test_matchLine(t *testing.T) {
 		}{
 			{"log", "^log", true},
 			{"slog", "^log", false},
+		}
+
+		for _, tt := range tests {
+			run(t, tt.line, tt.pattern, tt.expected)
+		}
+	})
+
+	t.Run("match end of string anchor", func(t *testing.T) {
+		tests := []struct {
+			line     string
+			pattern  string
+			expected bool
+		}{
+			{"dog", "dog$", true},
+			{"dogs", "dog$", false},
 		}
 
 		for _, tt := range tests {
