@@ -1,14 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
+	"slices"
 )
-
-// Ensures gofmt doesn't remove the "bytes" import above (feel free to remove this!)
-var _ = bytes.ContainsAny
 
 // Usage: echo <input_text> | your_program.sh -E <pattern>
 func main() {
@@ -38,73 +35,153 @@ func main() {
 	// default exit code is 0 which means success
 }
 
-func matchLine(line []byte, pattern string) (bool, error) {
-	var ok bool
+type RE struct {
+	classType classType
+	chars     []byte
+	negate    bool
+}
 
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-	fmt.Fprintln(os.Stderr, "Logs from your program will appear here!")
+type classType int
 
-	var i int
-	for i < len(pattern) {
+const (
+	classTypeChar classType = iota
+	classTypeCharGroup
+	classTypeDigit
+	classTypeWord
+)
+
+var (
+	digitChars = []byte("0123456789")
+	wordChars  = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+)
+
+func Compile(pattern string) ([]RE, error) {
+	var (
+		i     int
+		n     = len(pattern)
+		regex = []RE{}
+	)
+
+	for i < n {
 		switch pattern[i] {
 		case '\\':
 			i++
-			if i >= len(pattern) {
-				return false, fmt.Errorf("incomplete escape sequence at end of pattern")
+			if i >= n {
+				return nil, fmt.Errorf("incomplete escape sequence at end of pattern")
 			}
 			switch pattern[i] {
 			case 'd':
-				ok = bytes.ContainsAny(line, "0123456789")
+				regex = append(regex, RE{classType: classTypeDigit, chars: digitChars})
 			case 'w':
-				ok = bytes.ContainsAny(line, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+				regex = append(regex, RE{classType: classTypeWord, chars: wordChars})
 			default:
-				return false, fmt.Errorf("unknown escape sequence: \\%c", pattern[i])
+				// Treat as a literal character
+				regex = append(regex, RE{
+					classType: classTypeChar,
+					chars:     []byte{pattern[i]},
+				})
 			}
 		case '[':
 			i++
-			if i >= len(pattern) {
-				return false, fmt.Errorf("unmatched '[' in pattern")
+			if i >= n {
+				return nil, fmt.Errorf("unmatched '[' in pattern")
 			}
 
-			var negative bool
+			re := RE{
+				classType: classTypeCharGroup,
+			}
+
 			if pattern[i] == '^' {
 				i++
-				negative = true
+				re.negate = true
 			}
 
 			start := i
-			for i < len(pattern) && pattern[i] != ']' {
+			for i < n && pattern[i] != ']' {
 				i++
 			}
-			if i >= len(pattern) || pattern[i] != ']' {
-				return false, fmt.Errorf("unmatched '[' in pattern")
-			}
-			end := i
-			if start >= end {
-				return false, fmt.Errorf("empty character group in pattern")
-			}
-			charGroup := pattern[start:end]
-			if negative {
-				// Check if at least one character in the line does not match the character group
-				for _, char := range line {
-					if !bytes.ContainsRune([]byte(charGroup), rune(char)) {
-						ok = true // at least one character does not match
-						break
-					}
-				}
 
-			} else {
-				ok = bytes.ContainsAny(line, charGroup)
+			if i >= n || pattern[i] != ']' {
+				return nil, fmt.Errorf("unmatched '[' in pattern")
 			}
+
+			if start >= i {
+				return nil, fmt.Errorf("empty character group in pattern")
+			}
+			re.chars = []byte(pattern[start:i])
+
+			regex = append(regex, re)
 		default:
-			if !bytes.ContainsRune(line, rune(pattern[i])) {
-				return false, nil // no match found
-			} else {
-				ok = true // at least one character matched
-			}
+			regex = append(regex, RE{
+				classType: classTypeChar,
+				chars:     []byte{pattern[i]},
+			})
 		}
 		i++
 	}
 
-	return ok, nil
+	return regex, nil
+}
+
+func match(regex []RE, line []byte) bool {
+	var i int
+
+	for i < len(line) {
+		if matchHere(regex, line[i:]) {
+			return true
+		}
+
+		i++
+	}
+
+	return false
+}
+
+func matchHere(regex []RE, line []byte) bool {
+	if len(regex) == 0 {
+		return true // empty regex matches everything
+	}
+
+	if len(line) == 0 {
+		return false // no more characters in line to match against
+	}
+
+	switch regex[0].classType {
+	case classTypeChar:
+		if regex[0].chars[0] == line[0] {
+			return matchHere(regex[1:], line[1:])
+		}
+	case classTypeDigit:
+		if slices.Contains(regex[0].chars, line[0]) {
+			return matchHere(regex[1:], line[1:])
+		}
+	case classTypeWord:
+		if slices.Contains(regex[0].chars, line[0]) {
+			return matchHere(regex[1:], line[1:])
+		}
+	case classTypeCharGroup:
+		if regex[0].negate {
+			if !slices.Contains(regex[0].chars, line[0]) {
+				return matchHere(regex[1:], line[1:])
+			}
+		} else {
+			if slices.Contains(regex[0].chars, line[0]) {
+				return matchHere(regex[1:], line[1:])
+			}
+		}
+	}
+
+	return false
+}
+
+func matchLine(line []byte, pattern string) (bool, error) {
+	// You can use print statements as follows for debugging, they'll be visible when running tests.
+	fmt.Fprintln(os.Stderr, "Logs from your program will appear here!")
+
+	regex, err := Compile(pattern)
+	if err != nil {
+		return false, fmt.Errorf("error compiling regex: %v", err)
+	}
+
+	return match(regex, line), nil
 }
