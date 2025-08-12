@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"slices"
 )
 
 // Usage: echo <input_text> | your_program.sh -E <pattern>
@@ -37,36 +36,28 @@ func main() {
 
 type Regex struct {
 	matchStart bool
-	tokens     []RE
+	tokens     []Class
 }
 
-type RE struct {
-	classType classType
-	chars     []byte
-	negate    bool
+func (r *Regex) String() string {
+	var result string
+	if r.matchStart {
+		result += "^"
+	}
+
+	for _, token := range r.tokens {
+		result += token.String()
+	}
+
+	return result
 }
-
-type classType int
-
-const (
-	classTypeChar classType = iota
-	classTypeCharGroup
-	classTypeDigit
-	classTypeWord
-	classTypeEndAnchor
-)
-
-var (
-	digitChars = []byte("0123456789")
-	wordChars  = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
-)
 
 func Compile(pattern string) (*Regex, error) {
 	var (
 		i     int
 		n     = len(pattern)
 		regex = &Regex{
-			tokens: []RE{},
+			tokens: []Class{},
 		}
 	)
 
@@ -79,15 +70,12 @@ func Compile(pattern string) (*Regex, error) {
 			}
 			switch pattern[i] {
 			case 'd':
-				regex.tokens = append(regex.tokens, RE{classType: classTypeDigit, chars: digitChars})
+				regex.tokens = append(regex.tokens, DigitClass{})
 			case 'w':
-				regex.tokens = append(regex.tokens, RE{classType: classTypeWord, chars: wordChars})
+				regex.tokens = append(regex.tokens, WordClass{})
 			default:
 				// Treat as a literal character
-				regex.tokens = append(regex.tokens, RE{
-					classType: classTypeChar,
-					chars:     []byte{pattern[i]},
-				})
+				regex.tokens = append(regex.tokens, CharClass{c: pattern[i]})
 			}
 		case '[':
 			i++
@@ -95,13 +83,11 @@ func Compile(pattern string) (*Regex, error) {
 				return nil, fmt.Errorf("unmatched '[' in pattern")
 			}
 
-			re := RE{
-				classType: classTypeCharGroup,
-			}
+			c := CharGroupClass{}
 
 			if pattern[i] == '^' {
 				i++
-				re.negate = true
+				c.negate = true
 			}
 
 			start := i
@@ -116,26 +102,23 @@ func Compile(pattern string) (*Regex, error) {
 			if start >= i {
 				return nil, fmt.Errorf("empty character group in pattern")
 			}
-			re.chars = []byte(pattern[start:i])
+			c.chars = []byte(pattern[start:i])
 
-			regex.tokens = append(regex.tokens, re)
+			regex.tokens = append(regex.tokens, c)
 		case '^':
 			regex.matchStart = true
 			if i > 0 {
 				return nil, fmt.Errorf("caret '^' must be at the start of the pattern")
 			}
 		case '$':
-			regex.tokens = append(regex.tokens, RE{
-				classType: classTypeEndAnchor,
-			})
+			regex.tokens = append(regex.tokens, EndAnchorClass{})
 			if i < n-1 {
 				return nil, fmt.Errorf("dollar '$' must be at the end of the pattern")
 			}
+		case '+':
+			regex.tokens = append(regex.tokens, PlusClass{})
 		default:
-			regex.tokens = append(regex.tokens, RE{
-				classType: classTypeChar,
-				chars:     []byte{pattern[i]},
-			})
+			regex.tokens = append(regex.tokens, CharClass{c: pattern[i]})
 		}
 		i++
 	}
@@ -161,14 +144,14 @@ func match(regex *Regex, line []byte) bool {
 	return false
 }
 
-func matchHere(regex []RE, line []byte) bool {
+func matchHere(regex []Class, line []byte) bool {
 	if len(regex) == 0 {
 		return true // empty regex matches everything
 	}
 
 	// if the first token is an end anchor
 	// it must match the end of the line
-	if regex[0].classType == classTypeEndAnchor && len(regex) == 1 {
+	if _, ok := regex[0].(EndAnchorClass); ok && len(regex) == 1 {
 		return len(line) == 0 // end anchor matches only if line is empty
 	}
 
@@ -176,29 +159,33 @@ func matchHere(regex []RE, line []byte) bool {
 		return false // no more characters in line to match against
 	}
 
-	switch regex[0].classType {
-	case classTypeChar:
-		if regex[0].chars[0] == line[0] {
-			return matchHere(regex[1:], line[1:])
+	if len(regex) > 1 {
+		if _, ok := regex[1].(PlusClass); ok {
+			// If the next token is a plus, we need to match one or more occurrences
+			return matchPlus(regex[0], regex[2:], line)
 		}
-	case classTypeDigit:
-		if slices.Contains(regex[0].chars, line[0]) {
-			return matchHere(regex[1:], line[1:])
+	}
+
+	if regex[0].Check(line[0]) {
+		return matchHere(regex[1:], line[1:])
+	}
+
+	return false
+}
+
+func matchPlus(c Class, regex []Class, line []byte) bool {
+	// Match one or more occurrences of a class
+	var i int
+	for i < len(line) {
+		if !c.Check(line[i]) {
+			return false
 		}
-	case classTypeWord:
-		if slices.Contains(regex[0].chars, line[0]) {
-			return matchHere(regex[1:], line[1:])
+
+		if matchHere(regex, line[i+1:]) {
+			return true
 		}
-	case classTypeCharGroup:
-		if regex[0].negate {
-			if !slices.Contains(regex[0].chars, line[0]) {
-				return matchHere(regex[1:], line[1:])
-			}
-		} else {
-			if slices.Contains(regex[0].chars, line[0]) {
-				return matchHere(regex[1:], line[1:])
-			}
-		}
+
+		i++
 	}
 
 	return false

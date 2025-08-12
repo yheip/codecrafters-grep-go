@@ -146,4 +146,19 @@ func Test_matchLine(t *testing.T) {
 			run(t, tt.line, tt.pattern, tt.expected)
 		}
 	})
+
+	t.Run("Match one or more times", func(t *testing.T) {
+		tests := []struct {
+			line     string
+			pattern  string
+			expected bool
+		}{
+			{"caats", "ca+ts", true},
+			{"caats", "c[a]+ts", true},
+		}
+
+		for _, tt := range tests {
+			run(t, tt.line, tt.pattern, tt.expected)
+		}
+	})
 }
