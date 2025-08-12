@@ -117,6 +117,8 @@ func Compile(pattern string) (*Regex, error) {
 			}
 		case '+':
 			regex.tokens = append(regex.tokens, PlusClass{})
+		case '?':
+			regex.tokens = append(regex.tokens, OptionalClass{})
 		default:
 			regex.tokens = append(regex.tokens, CharClass{c: pattern[i]})
 		}
@@ -156,6 +158,12 @@ func matchHere(regex []Class, line []byte) bool {
 	}
 
 	if len(line) == 0 {
+		if len(regex) == 2 {
+			if _, ok := regex[1].(OptionalClass); ok {
+				return true // if the next token is optional, we can skip it
+			}
+		}
+
 		return false // no more characters in line to match against
 	}
 
@@ -163,6 +171,15 @@ func matchHere(regex []Class, line []byte) bool {
 		if _, ok := regex[1].(PlusClass); ok {
 			// If the next token is a plus, we need to match one or more occurrences
 			return matchPlus(regex[0], regex[2:], line)
+		}
+
+		if _, ok := regex[1].(OptionalClass); ok {
+			// If the next token is optional, we can either match it or skip it
+			if regex[0].Check(line[0]) {
+				return matchHere(regex[2:], line[1:])
+			} else {
+				return matchHere(regex[2:], line)
+			}
 		}
 	}
 

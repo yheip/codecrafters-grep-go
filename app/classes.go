@@ -82,3 +82,13 @@ func (p PlusClass) Check(b byte) bool {
 func (p PlusClass) String() string {
 	return "+"
 }
+
+type OptionalClass struct{}
+
+func (o OptionalClass) Check(b byte) bool {
+	return false
+}
+
+func (o OptionalClass) String() string {
+	return "?"
+}

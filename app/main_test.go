@@ -161,4 +161,22 @@ func Test_matchLine(t *testing.T) {
 			run(t, tt.line, tt.pattern, tt.expected)
 		}
 	})
+
+	t.Run("Match zero or one times", func(t *testing.T) {
+		tests := []struct {
+			line     string
+			pattern  string
+			expected bool
+		}{
+			{"dogs", "dogs?", true},
+			{"dog", "dogs?", true},
+			{"cat", "ca?t", true},
+			{"act", "ca?t", true},
+			{"cat", "dogs?", false},
+		}
+
+		for _, tt := range tests {
+			run(t, tt.line, tt.pattern, tt.expected)
+		}
+	})
 }
