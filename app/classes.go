@@ -92,3 +92,13 @@ func (o OptionalClass) Check(b byte) bool {
 func (o OptionalClass) String() string {
 	return "?"
 }
+
+type WildcardClass struct{}
+
+func (w WildcardClass) Check(b byte) bool {
+	return true // Matches any character
+}
+
+func (w WildcardClass) String() string {
+	return "."
+}
