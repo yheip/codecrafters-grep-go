@@ -39,6 +39,12 @@ type Regex struct {
 	tokens     []Class
 }
 
+func NewRegex() *Regex {
+	return &Regex{
+		tokens: []Class{},
+	}
+}
+
 func (r *Regex) String() string {
 	var result string
 	if r.matchStart {
@@ -50,84 +56,6 @@ func (r *Regex) String() string {
 	}
 
 	return result
-}
-
-func Compile(pattern string) (*Regex, error) {
-	var (
-		i     int
-		n     = len(pattern)
-		regex = &Regex{
-			tokens: []Class{},
-		}
-	)
-
-	for i < n {
-		switch pattern[i] {
-		case '\\':
-			i++
-			if i >= n {
-				return nil, fmt.Errorf("incomplete escape sequence at end of pattern")
-			}
-			switch pattern[i] {
-			case 'd':
-				regex.tokens = append(regex.tokens, DigitClass{})
-			case 'w':
-				regex.tokens = append(regex.tokens, WordClass{})
-			default:
-				// Treat as a literal character
-				regex.tokens = append(regex.tokens, CharClass{c: pattern[i]})
-			}
-		case '[':
-			i++
-			if i >= n {
-				return nil, fmt.Errorf("unmatched '[' in pattern")
-			}
-
-			c := CharGroupClass{}
-
-			if pattern[i] == '^' {
-				i++
-				c.negate = true
-			}
-
-			start := i
-			for i < n && pattern[i] != ']' {
-				i++
-			}
-
-			if i >= n || pattern[i] != ']' {
-				return nil, fmt.Errorf("unmatched '[' in pattern")
-			}
-
-			if start >= i {
-				return nil, fmt.Errorf("empty character group in pattern")
-			}
-			c.chars = []byte(pattern[start:i])
-
-			regex.tokens = append(regex.tokens, c)
-		case '^':
-			regex.matchStart = true
-			if i > 0 {
-				return nil, fmt.Errorf("caret '^' must be at the start of the pattern")
-			}
-		case '$':
-			regex.tokens = append(regex.tokens, EndAnchorClass{})
-			if i < n-1 {
-				return nil, fmt.Errorf("dollar '$' must be at the end of the pattern")
-			}
-		case '+':
-			regex.tokens = append(regex.tokens, PlusClass{})
-		case '?':
-			regex.tokens = append(regex.tokens, OptionalClass{})
-		case '.':
-			regex.tokens = append(regex.tokens, WildcardClass{})
-		default:
-			regex.tokens = append(regex.tokens, CharClass{c: pattern[i]})
-		}
-		i++
-	}
-
-	return regex, nil
 }
 
 func match(regex *Regex, line []byte) bool {
@@ -160,32 +88,43 @@ func matchHere(regex []Class, line []byte) bool {
 	}
 
 	if len(line) == 0 {
-		if len(regex) == 2 {
-			if _, ok := regex[1].(OptionalClass); ok {
-				return true // if the next token is optional, we can skip it
-			}
+		if regex[0].Optional() && len(regex) == 1 {
+			return true
 		}
 
 		return false // no more characters in line to match against
 	}
 
-	if len(regex) > 1 {
-		if _, ok := regex[1].(PlusClass); ok {
-			// If the next token is a plus, we need to match one or more occurrences
-			return matchPlus(regex[0], regex[2:], line)
-		}
+	if regex[0].AtLeastOne() {
+		return matchPlus(regex[0], regex[1:], line)
+	}
 
-		if _, ok := regex[1].(OptionalClass); ok {
-			// If the next token is optional, we can either match it or skip it
-			if regex[0].Check(line[0]) {
-				if matchHere(regex[2:], line[1:]) {
-					return true
-				}
+	if grp, ok := regex[0].(GroupClass); ok {
+		for _, alt := range grp.alts {
+			if matchHere(alt.tokens, line) {
+				return true
 			}
-
-			// Also try to match without the optional token
-			return matchHere(regex[2:], line)
 		}
+
+		// If no alternatives matched, check if the group is optional
+		// and try to match the rest of the regex
+		if grp.Optional() {
+			return matchHere(regex[1:], line)
+		}
+
+		return false // no alternative matched
+	}
+
+	if regex[0].Optional() {
+		// If the next token is optional, we can either match it or skip it
+		if regex[0].Check(line[0]) {
+			if matchHere(regex[1:], line[1:]) {
+				return true
+			}
+		}
+
+		// Also try to match without the optional token
+		return matchHere(regex[1:], line)
 	}
 
 	if regex[0].Check(line[0]) {
@@ -199,7 +138,20 @@ func matchPlus(c Class, regex []Class, line []byte) bool {
 	// Match one or more occurrences of a class
 	var i int
 	for i < len(line) {
-		if !c.Check(line[i]) {
+		// At least one class must match
+		if grp, ok := c.(GroupClass); ok {
+			found := false
+			for _, alt := range grp.alts {
+				if matchHere(alt.tokens, line) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				return false // no alternative matched
+			}
+		} else if !c.Check(line[0]) {
 			return false
 		}
 
