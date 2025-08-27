@@ -85,6 +85,34 @@ func TestMatch(t *testing.T) {
 				{input: []byte("d"), want: false},
 			},
 		},
+		{
+			name: "simple group with plus quantifier", // (ab)+
+			re: func() *regex.CompiledRegex {
+				s := make([]*regex.State, 5)
+				for i := range s {
+					s[i] = regex.NewState()
+				}
+				s[0].AddTransition(s[1], regex.EpsilonMatcher{})
+				s[1].AddTransition(s[2], regex.CharMatcher{Char: 'a'})
+				s[2].AddTransition(s[3], regex.CharMatcher{Char: 'b'})
+				s[3].AddTransition(s[1], regex.EpsilonMatcher{}) // loop back to s1
+				s[3].AddTransition(s[4], regex.EpsilonMatcher{})
+
+				re := &regex.CompiledRegex{}
+				re.SetInitialState(s[0])
+				re.SetEndingState(s[4])
+
+				return re
+			},
+			args: []args{
+				{input: []byte("ab"), want: true},
+				{input: []byte("abab"), want: true},
+				{input: []byte("cabab"), want: true},
+				{input: []byte("abc"), want: true},
+				{input: []byte("xabc"), want: true},
+				{input: []byte("acb"), want: false},
+			},
+		},
 	}
 
 	for _, tt := range tests {

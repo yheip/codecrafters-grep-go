@@ -14,7 +14,17 @@ type searchState struct {
 }
 
 func Match(input []byte, re *regex.CompiledRegex) bool {
-	stack := []searchState{{0, re.InitialState(), map[*regex.State]bool{}}}
+	for i := 0; i <= len(input); i++ {
+		if matchAt(i, input, re) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func matchAt(i int, input []byte, re *regex.CompiledRegex) bool {
+	stack := []searchState{{i, re.InitialState(), map[*regex.State]bool{}}}
 
 	for len(stack) > 0 {
 		current := stack[len(stack)-1]
