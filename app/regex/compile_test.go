@@ -98,19 +98,22 @@ func TestCompile(t *testing.T) {
 				},
 			},
 			want: func() *CompiledRegex {
-				s := make([]*State, 5)
+				s := make([]*State, 8)
 				for i := range s {
 					s[i] = NewState()
 				}
 
-				s[0].AddTransition(s[1], CharMatcher{Char: 'a'})
-				s[0].AddTransition(s[2], CharMatcher{Char: 'b'})
-				s[0].AddTransition(s[3], CharMatcher{Char: 'c'})
-				s[1].AddTransition(s[4], EpsilonMatcher{})
-				s[2].AddTransition(s[4], EpsilonMatcher{})
-				s[3].AddTransition(s[4], EpsilonMatcher{})
+				s[0].AddTransition(s[1], EpsilonMatcher{})
+				s[1].AddTransition(s[2], CharMatcher{Char: 'a'})
+				s[2].AddTransition(s[3], EpsilonMatcher{})
+				s[0].AddTransition(s[4], EpsilonMatcher{})
+				s[4].AddTransition(s[5], CharMatcher{Char: 'b'})
+				s[5].AddTransition(s[3], EpsilonMatcher{})
+				s[0].AddTransition(s[6], EpsilonMatcher{})
+				s[6].AddTransition(s[7], CharMatcher{Char: 'c'})
+				s[7].AddTransition(s[3], EpsilonMatcher{})
 
-				return &CompiledRegex{initialState: s[0], endingState: s[4]}
+				return &CompiledRegex{initialState: s[0], endingState: s[3]}
 			},
 		},
 		{
@@ -188,23 +191,26 @@ func TestCompile(t *testing.T) {
 				},
 			},
 			want: func() *CompiledRegex {
-				s := make([]*State, 7)
+				s := make([]*State, 9)
 				for i := range s {
 					s[i] = NewState()
 				}
 				s[0].AddTransition(s[1], EpsilonMatcher{})
-				s[1].AddTransition(s[2], CharMatcher{Char: 'a'})
-				s[2].AddTransition(s[3], CharMatcher{Char: 'b'})
-				s[1].AddTransition(s[4], CharMatcher{Char: 'c'})
-				s[3].AddTransition(s[5], EpsilonMatcher{})
+				s[1].AddTransition(s[2], EpsilonMatcher{})
+				s[2].AddTransition(s[3], CharMatcher{Char: 'a'})
+				s[3].AddTransition(s[4], CharMatcher{Char: 'b'})
 				s[4].AddTransition(s[5], EpsilonMatcher{})
 				s[5].AddTransition(s[1], EpsilonMatcher{})
 				s[5].AddTransition(s[6], EpsilonMatcher{})
+				s[1].AddTransition(s[7], EpsilonMatcher{})
+				s[7].AddTransition(s[8], CharMatcher{Char: 'c'})
+				s[8].AddTransition(s[5], EpsilonMatcher{})
 
 				return &CompiledRegex{initialState: s[0], endingState: s[6]}
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			expected := tt.want()

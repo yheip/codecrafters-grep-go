@@ -30,6 +30,8 @@ type RegexNode struct {
 	Children   []*RegexNode // For alternatives, groups
 	Value      byte         // For literals
 	Quantifier Quantifier
+	Capturing  bool
+	GroupName  string
 }
 
 func (n *RegexNode) WithQuantifier(q Quantifier) *RegexNode {

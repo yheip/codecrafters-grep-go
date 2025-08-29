@@ -27,15 +27,16 @@ func (re *CompiledRegex) EndingState() *State {
 	return re.endingState
 }
 
+// appendRegex connect the ending state of the current regex to the initial state of the other regex
 func (re *CompiledRegex) appendRegex(other *CompiledRegex) {
-	for _, tr := range other.initialState.Transitions {
-		re.endingState.AddTransition(tr.To, tr.Matcher)
-	}
+	re.endingState.Append(other.initialState)
 	re.endingState = other.endingState
 }
 
 type State struct {
-	Transitions []Transition
+	Transitions    []Transition
+	StartingGroups []string
+	EndingGroups   []string
 }
 
 func NewState() *State {
@@ -53,6 +54,21 @@ func (s *State) AddTransition(to *State, matcher Matcher) {
 
 func (s *State) PrependTransition(to *State, matcher Matcher) {
 	s.Transitions = append([]Transition{{To: to, Matcher: matcher}}, s.Transitions...)
+}
+
+func (s *State) AddStartingGroup(name string) {
+	s.StartingGroups = append(s.StartingGroups, name)
+}
+
+func (s *State) AddEndingGroup(name string) {
+	s.EndingGroups = append(s.EndingGroups, name)
+}
+
+// Append merges another state's transitions and groups into the current state.
+func (s *State) Append(other *State) {
+	s.Transitions = append(s.Transitions, other.Transitions...)
+	s.StartingGroups = append(s.StartingGroups, other.StartingGroups...)
+	s.EndingGroups = append(s.EndingGroups, other.EndingGroups...)
 }
 
 type Stringer interface {

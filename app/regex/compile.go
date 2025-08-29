@@ -7,28 +7,43 @@ import (
 )
 
 func Compile(root *parser.RegexNode) (*CompiledRegex, error) {
+	return compile(root, new(int))
+}
+
+func compile(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 	var re *CompiledRegex
-	switch root.Type {
+	switch node.Type {
 	case parser.NodeTypeLiteral:
-		re = NewSingleCharRegex(root.Value)
-		processQuantifier(re, root.Quantifier)
+		re = NewSingleCharRegex(node.Value)
+		processQuantifier(re, node.Quantifier)
 
 		return re, nil
 	case parser.NodeTypeGroup:
-		for _, child := range root.Children {
+		var grpName string
+
+		if node.Capturing {
+			if node.GroupName != "" {
+				grpName = node.GroupName
+			} else {
+				grpName = fmt.Sprintf("%d", grpNum)
+				*grpNum++
+			}
+		}
+
+		for _, child := range node.Children {
 			var current *CompiledRegex
 			switch child.Type {
 			case parser.NodeTypeLiteral:
 				current = NewSingleCharRegex(child.Value)
 			case parser.NodeTypeAlternation:
 				var err error
-				current, err = compileAlternation(child)
+				current, err = compileAlternation(child, grpNum)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile alteration: %w", err)
 				}
 			case parser.NodeTypeGroup:
 				var err error
-				current, err = Compile(child)
+				current, err = compile(child, grpNum)
 				if err != nil {
 					return nil, fmt.Errorf("failed to compile child group: %w", err)
 				}
@@ -45,6 +60,11 @@ func Compile(root *parser.RegexNode) (*CompiledRegex, error) {
 				re.appendRegex(current)
 			}
 		}
+
+		if node.Capturing {
+			re.initialState.AddStartingGroup(grpName)
+			re.endingState.AddEndingGroup(grpName)
+		}
 	}
 
 	return re, nil
@@ -59,7 +79,17 @@ func NewSingleCharRegex(c byte) *CompiledRegex {
 }
 
 // a|b
-func compileAlternation(node *parser.RegexNode) (*CompiledRegex, error) {
+func compileAlternation(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
+	var grpName string
+	if node.Capturing {
+		if node.GroupName != "" {
+			grpName = node.GroupName
+		} else {
+			grpName = fmt.Sprintf("%d", grpNum)
+			*grpNum++
+		}
+	}
+
 	start, end := NewState(), NewState()
 	re := &CompiledRegex{start, end}
 
@@ -73,11 +103,14 @@ func compileAlternation(node *parser.RegexNode) (*CompiledRegex, error) {
 			return nil, err
 		}
 
-		for _, tr := range subRe.initialState.Transitions {
-			start.AddTransition(tr.To, tr.Matcher)
-		}
+		start.AddTransition(subRe.initialState, EpsilonMatcher{})
 
 		subRe.endingState.AddTransition(end, EpsilonMatcher{})
+	}
+
+	if node.Capturing {
+		re.initialState.AddStartingGroup(grpName)
+		re.endingState.AddEndingGroup(grpName)
 	}
 
 	return re, nil
