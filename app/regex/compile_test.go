@@ -28,6 +28,30 @@ func TestCompile(t *testing.T) {
 			},
 		},
 		{
+			name: "digits", // \d
+			root: &parser.RegexNode{
+				Type: parser.NodeTypeGroup,
+				Children: []*parser.RegexNode{
+					parser.NewCharGroupMatch(parser.DigitMatcher),
+				},
+			},
+			want: func() *CompiledRegex {
+				return singleMatchRegex(parser.DigitMatcher)
+			},
+		},
+		{
+			name: "word chars", // \w
+			root: &parser.RegexNode{
+				Type: parser.NodeTypeGroup,
+				Children: []*parser.RegexNode{
+					parser.NewCharGroupMatch(parser.WordMatcher),
+				},
+			},
+			want: func() *CompiledRegex {
+				return singleMatchRegex(parser.WordMatcher)
+			},
+		},
+		{
 			name: "multiple chars", // abc
 			root: &parser.RegexNode{
 				Type: parser.NodeTypeGroup,

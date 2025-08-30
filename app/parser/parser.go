@@ -134,3 +134,22 @@ func (m *CharGroupMatcher) Match(c byte) bool {
 func (m *CharGroupMatcher) String() string {
 	return m.Label
 }
+
+var (
+	DigitMatcher = &CharGroupMatcher{
+		Chars: []byte{},
+		Ranges: [][2]byte{
+			{'0', '9'},
+		},
+		Label: `\d`,
+	}
+	WordMatcher = &CharGroupMatcher{
+		Chars: []byte{'_'},
+		Ranges: [][2]byte{
+			{'a', 'z'},
+			{'A', 'Z'},
+			{'0', '9'},
+		},
+		Label: `\w`,
+	}
+)

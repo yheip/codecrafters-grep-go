@@ -38,6 +38,52 @@ func TestMatch(t *testing.T) {
 			},
 		},
 		{
+			name: "single digit match",
+			re: func() *regex.CompiledRegex {
+				s0 := &regex.State{}
+				s1 := &regex.State{}
+				s0.AddTransition(s1, charGroupCharTransitioner(parser.DigitMatcher))
+
+				re := &regex.CompiledRegex{}
+				re.SetInitialState(s0)
+				re.SetEndingState(s1)
+
+				return re
+			},
+			args: []args{
+				{input: []byte("0"), want: true},
+				{input: []byte("5"), want: true},
+				{input: []byte("9"), want: true},
+				{input: []byte("9a"), want: true},
+				{input: []byte("a"), want: false},
+				{input: []byte("b"), want: false},
+				{input: []byte("c"), want: false},
+			},
+		},
+		{
+			name: "single word match",
+			re: func() *regex.CompiledRegex {
+				s0 := &regex.State{}
+				s1 := &regex.State{}
+				s0.AddTransition(s1, charGroupCharTransitioner(parser.WordMatcher))
+
+				re := &regex.CompiledRegex{}
+				re.SetInitialState(s0)
+				re.SetEndingState(s1)
+
+				return re
+			},
+			args: []args{
+				{input: []byte("0"), want: true},
+				{input: []byte("5"), want: true},
+				{input: []byte("9"), want: true},
+				{input: []byte("9a"), want: true},
+				{input: []byte("a"), want: true},
+				{input: []byte("b"), want: true},
+				{input: []byte("c"), want: true},
+			},
+		},
+		{
 			name: "with plus quantifier",
 			re: func() *regex.CompiledRegex {
 				s0 := &regex.State{}
@@ -295,6 +341,10 @@ func TestMatchWithCaptureGroups(t *testing.T) {
 	}
 }
 
-func literalCharTransitioner(b byte) regex.Transitioner {
+func literalCharTransitioner(b byte) regex.CharTransitioner {
 	return regex.CharTransitioner{Matcher: &parser.LiteralMatcher{Char: b}}
+}
+
+func charGroupCharTransitioner(matcher *parser.CharGroupMatcher) regex.CharTransitioner {
+	return regex.CharTransitioner{Matcher: matcher}
 }
