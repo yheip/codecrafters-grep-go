@@ -151,6 +151,8 @@ func printEdges(w io.Writer, s *State, visited map[*State]bool, idMap map[*State
 	visited[s] = true
 	sourceID := idMap[s]
 
+	fmt.Fprintf(w, "Groups at state %d: start=%v, end=%v\n", sourceID, s.StartingGroups, s.EndingGroups)
+
 	for _, transition := range s.Transitions {
 		targetID := idMap[transition.To]
 

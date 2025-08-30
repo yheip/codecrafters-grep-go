@@ -2,12 +2,14 @@ package regex
 
 import (
 	"bytes"
+	"log/slog"
 	"testing"
 
 	"github.com/codecrafters-io/grep-starter-go/app/parser"
 )
 
 func TestCompile(t *testing.T) {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 	tests := []struct {
 		name string
 		root *parser.RegexNode
@@ -136,6 +138,36 @@ func TestCompile(t *testing.T) {
 			},
 		},
 		{
+			name: "simple group with capturing", // (ab)
+			root: &parser.RegexNode{
+				Type: parser.NodeTypeGroup,
+				Children: []*parser.RegexNode{
+					{
+						Type: parser.NodeTypeGroup,
+						Children: []*parser.RegexNode{
+							parser.NewLiteral('a'),
+							parser.NewLiteral('b'),
+						},
+						Capturing: true,
+					},
+				},
+				Capturing: true,
+			},
+			want: func() *CompiledRegex {
+				s0 := NewState()
+				s1 := NewState()
+				s2 := NewState()
+				s0.AddStartingGroup("0")
+				s0.AddStartingGroup("1")
+				s0.AddTransition(s1, CharMatcher{Char: 'a'})
+				s1.AddTransition(s2, CharMatcher{Char: 'b'})
+				s2.AddEndingGroup("1")
+				s2.AddEndingGroup("0")
+
+				return &CompiledRegex{initialState: s0, endingState: s2}
+			},
+		},
+		{
 			name: "simple group with plus quantifier", // (ab)+
 			root: &parser.RegexNode{
 				Type: parser.NodeTypeGroup,
@@ -165,46 +197,85 @@ func TestCompile(t *testing.T) {
 			},
 		},
 		{
-			name: "nested group with alternation", // ((ab)|c)+
+			name: "simple group with capturing and plus quantifier", // (ab)+
 			root: &parser.RegexNode{
 				Type: parser.NodeTypeGroup,
 				Children: []*parser.RegexNode{
 					{
 						Type: parser.NodeTypeGroup,
 						Children: []*parser.RegexNode{
-							{
-								Type: parser.NodeTypeAlternation,
-								Children: []*parser.RegexNode{
-									{
-										Type: parser.NodeTypeGroup,
-										Children: []*parser.RegexNode{
-											parser.NewLiteral('a'),
-											parser.NewLiteral('b'),
-										},
-									},
-									parser.NewLiteral('c'),
-								},
-							},
+							parser.NewLiteral('a'),
+							parser.NewLiteral('b'),
 						},
 						Quantifier: parser.QuantifierPlus,
+						Capturing:  true,
 					},
 				},
+				Capturing: true,
+			},
+			want: func() *CompiledRegex {
+				s := make([]*State, 5)
+				for i := range s {
+					s[i] = NewState()
+				}
+				s[0].AddTransition(s[1], EpsilonMatcher{})
+				s[0].AddStartingGroup("0")
+				s[1].AddStartingGroup("1")
+				s[1].AddTransition(s[2], CharMatcher{Char: 'a'})
+				s[2].AddTransition(s[3], CharMatcher{Char: 'b'})
+				s[3].AddTransition(s[1], EpsilonMatcher{}) // loop back to s1
+				s[3].AddEndingGroup("1")
+				s[3].AddTransition(s[4], EpsilonMatcher{})
+				s[4].AddEndingGroup("0")
+
+				return &CompiledRegex{initialState: s[0], endingState: s[4]}
+			},
+		},
+		{
+			name: "nested group with alternation and capturing", // ((ab)|c)+
+			root: &parser.RegexNode{
+				Type: parser.NodeTypeGroup,
+				Children: []*parser.RegexNode{
+					{
+						Type: parser.NodeTypeAlternation,
+						Children: []*parser.RegexNode{
+							{
+								Type: parser.NodeTypeGroup,
+								Children: []*parser.RegexNode{
+									parser.NewLiteral('a'),
+									parser.NewLiteral('b'),
+								},
+								Capturing: true,
+							},
+							parser.NewLiteral('c'),
+						},
+						Quantifier: parser.QuantifierPlus,
+						Capturing:  true,
+					},
+				},
+				Capturing: true,
 			},
 			want: func() *CompiledRegex {
 				s := make([]*State, 9)
 				for i := range s {
 					s[i] = NewState()
 				}
+				s[0].AddStartingGroup("0")
 				s[0].AddTransition(s[1], EpsilonMatcher{})
 				s[1].AddTransition(s[2], EpsilonMatcher{})
+				s[1].AddStartingGroup("1")
+				s[2].AddStartingGroup("2")
 				s[2].AddTransition(s[3], CharMatcher{Char: 'a'})
 				s[3].AddTransition(s[4], CharMatcher{Char: 'b'})
 				s[4].AddTransition(s[5], EpsilonMatcher{})
+				s[4].AddEndingGroup("2")
 				s[5].AddTransition(s[1], EpsilonMatcher{})
 				s[5].AddTransition(s[6], EpsilonMatcher{})
 				s[1].AddTransition(s[7], EpsilonMatcher{})
 				s[7].AddTransition(s[8], CharMatcher{Char: 'c'})
 				s[8].AddTransition(s[5], EpsilonMatcher{})
+				s[5].AddEndingGroup("1")
+				s[6].AddEndingGroup("0")
 
 				return &CompiledRegex{initialState: s[0], endingState: s[6]}
 			},

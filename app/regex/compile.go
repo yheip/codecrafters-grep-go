@@ -25,7 +25,7 @@ func compile(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 			if node.GroupName != "" {
 				grpName = node.GroupName
 			} else {
-				grpName = fmt.Sprintf("%d", grpNum)
+				grpName = fmt.Sprintf("%d", *grpNum)
 				*grpNum++
 			}
 		}
@@ -85,7 +85,7 @@ func compileAlternation(node *parser.RegexNode, grpNum *int) (*CompiledRegex, er
 		if node.GroupName != "" {
 			grpName = node.GroupName
 		} else {
-			grpName = fmt.Sprintf("%d", grpNum)
+			grpName = fmt.Sprintf("%d", *grpNum)
 			*grpNum++
 		}
 	}
@@ -98,7 +98,7 @@ func compileAlternation(node *parser.RegexNode, grpNum *int) (*CompiledRegex, er
 		var subRe *CompiledRegex
 		var err error
 
-		subRe, err = Compile(child)
+		subRe, err = compile(child, grpNum)
 		if err != nil {
 			return nil, err
 		}

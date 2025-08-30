@@ -1,6 +1,7 @@
 package regex
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -164,6 +165,16 @@ func statesEqualHelper(s1, s2 *State, visited map[*State]*State) bool {
 	}
 
 	visited[s1] = s2
+
+	if !slices.Equal(
+		slices.Sorted(slices.Values(s1.StartingGroups)),
+		slices.Sorted(slices.Values(s2.StartingGroups)),
+	) || !slices.Equal(
+		slices.Sorted(slices.Values(s1.EndingGroups)),
+		slices.Sorted(slices.Values(s2.EndingGroups)),
+	) {
+		return false
+	}
 
 	if len(s1.Transitions) != len(s2.Transitions) {
 		return false
