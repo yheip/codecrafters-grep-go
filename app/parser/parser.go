@@ -136,6 +136,7 @@ func (m *CharGroupMatcher) String() string {
 }
 
 var (
+	// \d
 	DigitMatcher = &CharGroupMatcher{
 		Chars: []byte{},
 		Ranges: [][2]byte{
@@ -143,6 +144,7 @@ var (
 		},
 		Label: `\d`,
 	}
+	// \w
 	WordMatcher = &CharGroupMatcher{
 		Chars: []byte{'_'},
 		Ranges: [][2]byte{
@@ -151,5 +153,12 @@ var (
 			{'0', '9'},
 		},
 		Label: `\w`,
+	}
+
+	// .
+	DotMatcher = &CharGroupMatcher{
+		Chars:  []byte{'\n'},
+		Ranges: [][2]byte{},
+		Negate: true,
 	}
 )
