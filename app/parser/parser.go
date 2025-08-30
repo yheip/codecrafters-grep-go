@@ -23,6 +23,8 @@ type NodeType int
 
 const (
 	NodeTypeMatch NodeType = iota
+	NodeTypeCaretAnchor
+	NodeTypeDollorAnchor
 	NodeTypeAlternation
 	NodeTypeGroup
 )
@@ -53,6 +55,18 @@ func NewCharGroupMatch(m *CharGroupMatcher) *RegexNode {
 	return &RegexNode{
 		Type:  NodeTypeMatch,
 		Value: m,
+	}
+}
+
+func NewCaretAnchor() *RegexNode {
+	return &RegexNode{
+		Type: NodeTypeCaretAnchor,
+	}
+}
+
+func NewDollarAnchor() *RegexNode {
+	return &RegexNode{
+		Type: NodeTypeDollorAnchor,
 	}
 }
 
@@ -156,7 +170,7 @@ var (
 	}
 
 	// .
-	DotMatcher = &CharGroupMatcher{
+	WildcardMatcher = &CharGroupMatcher{
 		Chars:  []byte{'\n'},
 		Ranges: [][2]byte{},
 		Negate: true,

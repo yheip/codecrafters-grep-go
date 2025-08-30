@@ -82,8 +82,8 @@ type Transition struct {
 
 // Transitioner defines the interface for transition conditions in the NFA.
 type Transitioner interface {
-	Match(b byte) bool
-	IsEpsilon() bool
+	Match(input []byte, pos int) bool
+	Consumable() bool
 	Stringer
 }
 
@@ -98,12 +98,17 @@ type CharTransitioner struct {
 	Matcher
 }
 
-func (m CharTransitioner) Match(b byte) bool {
-	return m.Matcher.Match(b)
+func (m CharTransitioner) Match(input []byte, pos int) bool {
+	// Ensure position is within bounds
+	if pos >= len(input) {
+		return false
+	}
+
+	return m.Matcher.Match(input[pos])
 }
 
-func (m CharTransitioner) IsEpsilon() bool {
-	return false
+func (m CharTransitioner) Consumable() bool {
+	return true
 }
 
 func (m CharTransitioner) String() string {
@@ -111,18 +116,47 @@ func (m CharTransitioner) String() string {
 }
 
 // EpsilonTransitioner is a transition that represents an epsilon transition.
+// It always matches without consuming any input.
 type EpsilonTransitioner struct{}
 
-func (m EpsilonTransitioner) Match(b byte) bool {
+func (m EpsilonTransitioner) Match(input []byte, pos int) bool {
 	return true
 }
 
-func (m EpsilonTransitioner) IsEpsilon() bool {
-	return true
+func (m EpsilonTransitioner) Consumable() bool {
+	return false
 }
 
 func (m EpsilonTransitioner) String() string {
 	return "ε"
+}
+
+type EndOfStringTransitioner struct{}
+
+func (m EndOfStringTransitioner) Match(input []byte, pos int) bool {
+	return pos >= len(input)
+}
+
+func (m EndOfStringTransitioner) Consumable() bool {
+	return false
+}
+
+func (m EndOfStringTransitioner) String() string {
+	return "$"
+}
+
+type StartOfStringTransitioner struct{}
+
+func (m StartOfStringTransitioner) Match(input []byte, pos int) bool {
+	return pos == 0
+}
+
+func (m StartOfStringTransitioner) Consumable() bool {
+	return false
+}
+
+func (m StartOfStringTransitioner) String() string {
+	return "^"
 }
 
 func printRegex(w io.Writer, re *CompiledRegex) {

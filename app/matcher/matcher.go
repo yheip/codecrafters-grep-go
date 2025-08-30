@@ -79,7 +79,15 @@ func matchAt(i int, input []byte, re *regex.CompiledRegex) map[string]GroupMatch
 		// Go through transitions in reverse order to maintain the original order when using a stack
 		for _, tr := range slices.Backward(current.state.Transitions) {
 			matchedGroups := maps.Clone(current.matchedGroups) // Clone matched groups for each transition
-			if tr.IsEpsilon() {
+			if tr.Match(input, current.idx) {
+				if tr.Consumable() {
+					epilonVisited := map[*regex.State]bool{} // Reset epsilon visited on non-epsilon transitions
+					stack = append(stack, searchState{current.idx + 1, tr.To, epilonVisited, matchedGroups})
+
+					continue
+
+				}
+
 				epilonVisited := maps.Clone(current.epsilonVisited)
 				//.Don't consume input on epsilon transitions
 				if epilonVisited[tr.To] {
@@ -88,10 +96,6 @@ func matchAt(i int, input []byte, re *regex.CompiledRegex) map[string]GroupMatch
 
 				epilonVisited[tr.To] = true
 				stack = append(stack, searchState{current.idx, tr.To, epilonVisited, matchedGroups})
-			} else if current.idx < len(input) && tr.Match(input[current.idx]) {
-				epilonVisited := map[*regex.State]bool{} // Reset epsilon visited on non-epsilon transitions
-
-				stack = append(stack, searchState{current.idx + 1, tr.To, epilonVisited, matchedGroups})
 			}
 		}
 	}

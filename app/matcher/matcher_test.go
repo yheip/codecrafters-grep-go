@@ -84,6 +84,29 @@ func TestMatch(t *testing.T) {
 			},
 		},
 		{
+			name: "wildcard match",
+			re: func() *regex.CompiledRegex {
+				s0 := &regex.State{}
+				s1 := &regex.State{}
+				s0.AddTransition(s1, charGroupCharTransitioner(parser.WildcardMatcher))
+
+				re := &regex.CompiledRegex{}
+				re.SetInitialState(s0)
+				re.SetEndingState(s1)
+
+				return re
+			},
+			args: []args{
+				{input: []byte("a"), want: true},
+				{input: []byte("Z"), want: true},
+				{input: []byte("0"), want: true},
+				{input: []byte("9"), want: true},
+				{input: []byte("_"), want: true},
+				{input: []byte("-"), want: true},
+				{input: []byte("\n"), want: false},
+			},
+		},
+		{
 			name: "with plus quantifier",
 			re: func() *regex.CompiledRegex {
 				s0 := &regex.State{}
@@ -103,6 +126,71 @@ func TestMatch(t *testing.T) {
 				{input: []byte("ab"), want: true},
 				{input: []byte("abab"), want: true},
 				{input: []byte("a"), want: false},
+			},
+		},
+		{
+			name: "anchor start of string", // ^a
+			re: func() *regex.CompiledRegex {
+				s0 := &regex.State{}
+				s1 := &regex.State{}
+				s2 := &regex.State{}
+				s0.AddTransition(s1, regex.StartOfStringTransitioner{})
+				s1.AddTransition(s2, literalCharTransitioner('a'))
+
+				re := &regex.CompiledRegex{}
+				re.SetInitialState(s0)
+				re.SetEndingState(s2)
+
+				return re
+			},
+			args: []args{
+				{input: []byte("a"), want: true},
+				{input: []byte("ab"), want: true},
+				{input: []byte("ba"), want: false},
+			},
+		},
+		{
+			name: "anchor end of string", // a$
+			re: func() *regex.CompiledRegex {
+				s0 := &regex.State{}
+				s1 := &regex.State{}
+				s2 := &regex.State{}
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s1.AddTransition(s2, regex.EndOfStringTransitioner{})
+
+				re := &regex.CompiledRegex{}
+				re.SetInitialState(s0)
+				re.SetEndingState(s2)
+
+				return re
+			},
+			args: []args{
+				{input: []byte("a"), want: true},
+				{input: []byte("ba"), want: true},
+				{input: []byte("ab"), want: false},
+			},
+		},
+		{
+			name: "anchor both ends", // ^a$
+			re: func() *regex.CompiledRegex {
+				s0 := &regex.State{}
+				s1 := &regex.State{}
+				s2 := &regex.State{}
+				s3 := &regex.State{}
+				s0.AddTransition(s1, regex.StartOfStringTransitioner{})
+				s1.AddTransition(s2, literalCharTransitioner('a'))
+				s2.AddTransition(s3, regex.EndOfStringTransitioner{})
+
+				re := &regex.CompiledRegex{}
+				re.SetInitialState(s0)
+				re.SetEndingState(s3)
+
+				return re
+			},
+			args: []args{
+				{input: []byte("a"), want: true},
+				{input: []byte("ba"), want: false},
+				{input: []byte("ab"), want: false},
 			},
 		},
 		{

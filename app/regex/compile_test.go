@@ -75,6 +75,30 @@ func TestCompile(t *testing.T) {
 			},
 		},
 		{
+			name: "with anchor", // ^ab$
+			root: &parser.RegexNode{
+				Type: parser.NodeTypeGroup,
+				Children: []*parser.RegexNode{
+					{Type: parser.NodeTypeCaretAnchor},
+					parser.NewLiteralMatch('a'),
+					parser.NewLiteralMatch('b'),
+					{Type: parser.NodeTypeDollorAnchor},
+				},
+			},
+			want: func() *CompiledRegex {
+				s := make([]*State, 5)
+				for i := range s {
+					s[i] = NewState()
+				}
+				s[0].AddTransition(s[1], StartOfStringTransitioner{})
+				s[1].AddTransition(s[2], literalCharTransitioner('a'))
+				s[2].AddTransition(s[3], literalCharTransitioner('b'))
+				s[3].AddTransition(s[4], EndOfStringTransitioner{})
+
+				return &CompiledRegex{initialState: s[0], endingState: s[4]}
+			},
+		},
+		{
 			name: "single char with plus quantifier", // a+
 			root: &parser.RegexNode{
 				Type: parser.NodeTypeGroup,

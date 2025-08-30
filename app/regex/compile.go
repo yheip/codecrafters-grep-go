@@ -34,7 +34,11 @@ func compile(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 			var current *CompiledRegex
 			switch child.Type {
 			case parser.NodeTypeMatch:
-				current = singleMatchRegex(child.Value)
+				current = singleTransitionRegex(CharTransitioner{child.Value})
+			case parser.NodeTypeCaretAnchor:
+				current = singleTransitionRegex(StartOfStringTransitioner{})
+			case parser.NodeTypeDollorAnchor:
+				current = singleTransitionRegex(EndOfStringTransitioner{})
 			case parser.NodeTypeAlternation:
 				var err error
 				current, err = compileAlternation(child, grpNum)
@@ -70,15 +74,22 @@ func compile(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 	return re, nil
 }
 
-func singleMatchRegex(m parser.Matcher) *CompiledRegex {
+// singleTransitionRegex creates a regex with a single transition from start to end
+func singleTransitionRegex(tr Transitioner) *CompiledRegex {
 	start := NewState()
 	end := NewState()
-	start.AddTransition(end, CharTransitioner{m})
+	start.AddTransition(end, tr)
 
 	return &CompiledRegex{start, end}
 }
 
-// a|b
+// singleMatchRegex creates a regex that matches a single character
+func singleMatchRegex(m parser.Matcher) *CompiledRegex {
+	return singleTransitionRegex(CharTransitioner{m})
+}
+
+// compileAlternation compiles an alternation node into a CompiledRegex
+// i.e a|b
 func compileAlternation(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 	var grpName string
 	if node.Capturing {
@@ -116,6 +127,7 @@ func compileAlternation(node *parser.RegexNode, grpNum *int) (*CompiledRegex, er
 	return re, nil
 }
 
+// processQuantifier modifies the base regex according to the quantifier
 func processQuantifier(base *CompiledRegex, q parser.Quantifier) {
 	if q.Plus() {
 		withPlus(base)
@@ -124,6 +136,7 @@ func processQuantifier(base *CompiledRegex, q parser.Quantifier) {
 	}
 }
 
+// withPlus modifies the base regex to match one or more times
 func withPlus(base *CompiledRegex) {
 	start := NewState()
 	end := NewState()
@@ -136,6 +149,7 @@ func withPlus(base *CompiledRegex) {
 	base.endingState = end
 }
 
+// withOptional modifies the base regex to match zero or one time
 func withOptional(base *CompiledRegex) {
 	base.initialState.AddTransition(base.endingState, EpsilonTransitioner{})
 }

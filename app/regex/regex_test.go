@@ -211,6 +211,12 @@ func transitionersEqual(m1, m2 Transitioner) bool {
 	case EpsilonTransitioner:
 		_, ok := m2.(EpsilonTransitioner)
 		return ok
+	case StartOfStringTransitioner:
+		_, ok := m2.(StartOfStringTransitioner)
+		return ok
+	case EndOfStringTransitioner:
+		_, ok := m2.(EndOfStringTransitioner)
+		return ok
 	}
 
 	return false
