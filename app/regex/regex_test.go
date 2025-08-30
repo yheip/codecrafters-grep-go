@@ -17,13 +17,13 @@ func Test_regexEqual(t *testing.T) {
 			left: func() *CompiledRegex {
 				s0 := &State{}
 				s1 := &State{}
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
 				return &CompiledRegex{initialState: s0, endingState: s1}
 			},
 			right: func() *CompiledRegex {
 				s0 := &State{}
 				s1 := &State{}
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
 				return &CompiledRegex{initialState: s0, endingState: s1}
 			},
 			want: true,
@@ -35,10 +35,10 @@ func Test_regexEqual(t *testing.T) {
 				s1 := &State{}
 				s2 := &State{}
 				s3 := &State{}
-				s0.AddTransition(s1, EpsilonMatcher{})
-				s1.AddTransition(s2, CharMatcher{Char: 'a'})
-				s2.AddTransition(s3, CharMatcher{Char: 'b'})
-				s2.AddTransition(s1, EpsilonMatcher{}) // loop back to s1
+				s0.AddTransition(s1, EpsilonTransitioner{})
+				s1.AddTransition(s2, literalCharTransitioner('a'))
+				s2.AddTransition(s3, literalCharTransitioner('b'))
+				s2.AddTransition(s1, EpsilonTransitioner{}) // loop back to s1
 
 				return &CompiledRegex{initialState: s0, endingState: s3}
 			},
@@ -47,10 +47,10 @@ func Test_regexEqual(t *testing.T) {
 				s1 := &State{}
 				s2 := &State{}
 				s3 := &State{}
-				s0.AddTransition(s1, EpsilonMatcher{})
-				s1.AddTransition(s2, CharMatcher{Char: 'a'})
-				s2.AddTransition(s3, CharMatcher{Char: 'b'})
-				s2.AddTransition(s1, EpsilonMatcher{}) // loop back to s1
+				s0.AddTransition(s1, EpsilonTransitioner{})
+				s1.AddTransition(s2, literalCharTransitioner('a'))
+				s2.AddTransition(s3, literalCharTransitioner('b'))
+				s2.AddTransition(s1, EpsilonTransitioner{}) // loop back to s1
 
 				return &CompiledRegex{initialState: s0, endingState: s3}
 			},
@@ -62,9 +62,9 @@ func Test_regexEqual(t *testing.T) {
 				s0 := &State{}
 				s1 := &State{}
 				s2 := &State{}
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
-				s1.AddTransition(s1, EpsilonMatcher{})
-				s1.AddTransition(s2, CharMatcher{Char: 'b'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s1.AddTransition(s1, EpsilonTransitioner{})
+				s1.AddTransition(s2, literalCharTransitioner('b'))
 
 				return &CompiledRegex{initialState: s0, endingState: s2}
 			},
@@ -72,9 +72,9 @@ func Test_regexEqual(t *testing.T) {
 				s0 := &State{}
 				s1 := &State{}
 				s2 := &State{}
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
-				s1.AddTransition(s1, EpsilonMatcher{})
-				s1.AddTransition(s2, CharMatcher{Char: 'b'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s1.AddTransition(s1, EpsilonTransitioner{})
+				s1.AddTransition(s2, literalCharTransitioner('b'))
 
 				return &CompiledRegex{initialState: s0, endingState: s2}
 			},
@@ -85,13 +85,13 @@ func Test_regexEqual(t *testing.T) {
 			left: func() *CompiledRegex {
 				s0 := &State{}
 				s1 := &State{}
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
 				return &CompiledRegex{initialState: s0, endingState: s1}
 			},
 			right: func() *CompiledRegex {
 				s0 := &State{}
 				s1 := &State{}
-				s0.AddTransition(s1, CharMatcher{Char: 'b'})
+				s0.AddTransition(s1, literalCharTransitioner('b'))
 				return &CompiledRegex{initialState: s0, endingState: s1}
 			},
 			want: false,
@@ -102,15 +102,15 @@ func Test_regexEqual(t *testing.T) {
 				s0 := &State{}
 				s1 := &State{}
 				s2 := &State{}
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
-				s1.AddTransition(s2, CharMatcher{Char: 'b'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s1.AddTransition(s2, literalCharTransitioner('b'))
 				return &CompiledRegex{initialState: s0, endingState: s2}
 			},
 			right: func() *CompiledRegex {
 				s0 := &State{}
 				s1 := &State{}
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
-				s0.AddTransition(s1, CharMatcher{Char: 'b'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s0.AddTransition(s1, literalCharTransitioner('b'))
 				return &CompiledRegex{initialState: s0, endingState: s1}
 			},
 			want: false,
@@ -183,7 +183,7 @@ func statesEqualHelper(s1, s2 *State, visited map[*State]*State) bool {
 	for i, transition := range s1.Transitions {
 		otherTransition := s2.Transitions[i]
 
-		if !matchersEqual(transition.Matcher, otherTransition.Matcher) {
+		if !transitionersEqual(transition.Transitioner, otherTransition.Transitioner) {
 			return false
 		}
 
@@ -195,7 +195,7 @@ func statesEqualHelper(s1, s2 *State, visited map[*State]*State) bool {
 	return true
 }
 
-func matchersEqual(m1, m2 Matcher) bool {
+func transitionersEqual(m1, m2 Transitioner) bool {
 	if m1 == nil && m2 == nil {
 		return true
 	}
@@ -204,12 +204,12 @@ func matchersEqual(m1, m2 Matcher) bool {
 	}
 
 	switch v1 := m1.(type) {
-	case CharMatcher:
-		if v2, ok := m2.(CharMatcher); ok {
-			return v1.Char == v2.Char
+	case CharTransitioner:
+		if v2, ok := m2.(CharTransitioner); ok {
+			return v1.Matcher.String() == v2.Matcher.String()
 		}
-	case EpsilonMatcher:
-		_, ok := m2.(EpsilonMatcher)
+	case EpsilonTransitioner:
+		_, ok := m2.(EpsilonTransitioner)
 		return ok
 	}
 

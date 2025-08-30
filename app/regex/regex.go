@@ -45,15 +45,15 @@ func NewState() *State {
 	}
 }
 
-func (s *State) AddTransition(to *State, matcher Matcher) {
+func (s *State) AddTransition(to *State, transitioner Transitioner) {
 	s.Transitions = append(s.Transitions, Transition{
-		To:      to,
-		Matcher: matcher,
+		To:           to,
+		Transitioner: transitioner,
 	})
 }
 
-func (s *State) PrependTransition(to *State, matcher Matcher) {
-	s.Transitions = append([]Transition{{To: to, Matcher: matcher}}, s.Transitions...)
+func (s *State) PrependTransition(to *State, transitioner Transitioner) {
+	s.Transitions = append([]Transition{{To: to, Transitioner: transitioner}}, s.Transitions...)
 }
 
 func (s *State) AddStartingGroup(name string) {
@@ -77,41 +77,51 @@ type Stringer interface {
 
 type Transition struct {
 	To *State
+	Transitioner
+}
+
+// Transitioner defines the interface for transition conditions in the NFA.
+type Transitioner interface {
+	Match(b byte) bool
+	IsEpsilon() bool
+	Stringer
+}
+
+// Matcher defines the interface for matching a byte.
+type Matcher interface {
+	Match(b byte) bool
+	Stringer
+}
+
+// CharTransitioner is a transition that matches a specific character.
+type CharTransitioner struct {
 	Matcher
 }
 
-type Matcher interface {
-	Match(b byte) bool
-	IsEpsilon() bool
+func (m CharTransitioner) Match(b byte) bool {
+	return m.Matcher.Match(b)
 }
 
-type CharMatcher struct {
-	Char byte
-}
-
-func (m CharMatcher) Match(b byte) bool {
-	return m.Char == b
-}
-
-func (m CharMatcher) IsEpsilon() bool {
+func (m CharTransitioner) IsEpsilon() bool {
 	return false
 }
 
-func (m CharMatcher) String() string {
-	return string(m.Char)
+func (m CharTransitioner) String() string {
+	return m.Matcher.String()
 }
 
-type EpsilonMatcher struct{}
+// EpsilonTransitioner is a transition that represents an epsilon transition.
+type EpsilonTransitioner struct{}
 
-func (m EpsilonMatcher) Match(b byte) bool {
+func (m EpsilonTransitioner) Match(b byte) bool {
 	return true
 }
 
-func (m EpsilonMatcher) IsEpsilon() bool {
+func (m EpsilonTransitioner) IsEpsilon() bool {
 	return true
 }
 
-func (m EpsilonMatcher) String() string {
+func (m EpsilonTransitioner) String() string {
 	return "ε"
 }
 
@@ -153,14 +163,10 @@ func printEdges(w io.Writer, s *State, visited map[*State]bool, idMap map[*State
 
 	fmt.Fprintf(w, "Groups at state %d: start=%v, end=%v\n", sourceID, s.StartingGroups, s.EndingGroups)
 
-	for _, transition := range s.Transitions {
-		targetID := idMap[transition.To]
+	for _, tr := range s.Transitions {
+		targetID := idMap[tr.To]
 
-		if t, ok := transition.Matcher.(Stringer); ok {
-			fmt.Fprintf(w, "  %d --[%s]--> %d\n", sourceID, t.String(), targetID)
-		} else {
-			fmt.Fprintf(w, "  %d --[unknown]--> %d\n", sourceID, targetID)
-		}
+		fmt.Fprintf(w, "  %d --[%s]--> %d\n", sourceID, tr.String(), targetID)
 	}
 
 	for _, transition := range s.Transitions {

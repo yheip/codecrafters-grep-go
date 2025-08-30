@@ -1,5 +1,7 @@
 package parser
 
+import "slices"
+
 type Parser struct {
 	pattern string
 	pos     int
@@ -20,15 +22,15 @@ func (p *Parser) Parse() (*RegexNode, error) {
 type NodeType int
 
 const (
-	NodeTypeLiteral NodeType = iota
+	NodeTypeMatch NodeType = iota
 	NodeTypeAlternation
 	NodeTypeGroup
 )
 
 type RegexNode struct {
 	Type       NodeType
-	Children   []*RegexNode // For alternatives, groups
-	Value      byte         // For literals
+	Children   []*RegexNode // For alternations, groups
+	Value      Matcher      // For match nodes
 	Quantifier Quantifier
 	Capturing  bool
 	GroupName  string
@@ -40,10 +42,17 @@ func (n *RegexNode) WithQuantifier(q Quantifier) *RegexNode {
 	return n
 }
 
-func NewLiteral(value byte) *RegexNode {
+func NewLiteralMatch(value byte) *RegexNode {
 	return &RegexNode{
-		Type:  NodeTypeLiteral,
-		Value: value,
+		Type:  NodeTypeMatch,
+		Value: &LiteralMatcher{Char: value},
+	}
+}
+
+func NewCharGroupMatch(m *CharGroupMatcher) *RegexNode {
+	return &RegexNode{
+		Type:  NodeTypeMatch,
+		Value: m,
 	}
 }
 
@@ -80,4 +89,48 @@ func (q Quantifier) Plus() bool {
 
 func (q Quantifier) Optional() bool {
 	return q&QuantifierOptional != 0
+}
+
+type Matcher interface {
+	Match(c byte) bool
+	String() string
+}
+
+type LiteralMatcher struct {
+	Char byte
+}
+
+func (m *LiteralMatcher) Match(c byte) bool {
+	return m.Char == c
+}
+
+func (m *LiteralMatcher) String() string {
+	return string(m.Char)
+}
+
+type CharGroupMatcher struct {
+	Chars  []byte
+	Ranges [][2]byte
+	Negate bool
+	Label  string
+}
+
+func (m *CharGroupMatcher) Match(c byte) bool {
+	found := slices.Contains(m.Chars, c)
+
+	if !found {
+		found = slices.ContainsFunc(m.Ranges, func(r [2]byte) bool {
+			return c >= r[0] && c <= r[1]
+		})
+	}
+
+	if m.Negate {
+		return !found
+	}
+
+	return found
+}
+
+func (m *CharGroupMatcher) String() string {
+	return m.Label
 }

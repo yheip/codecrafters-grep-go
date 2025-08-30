@@ -13,8 +13,8 @@ func Compile(root *parser.RegexNode) (*CompiledRegex, error) {
 func compile(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 	var re *CompiledRegex
 	switch node.Type {
-	case parser.NodeTypeLiteral:
-		re = NewSingleCharRegex(node.Value)
+	case parser.NodeTypeMatch:
+		re = singleMatchRegex(node.Value)
 		processQuantifier(re, node.Quantifier)
 
 		return re, nil
@@ -33,8 +33,8 @@ func compile(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 		for _, child := range node.Children {
 			var current *CompiledRegex
 			switch child.Type {
-			case parser.NodeTypeLiteral:
-				current = NewSingleCharRegex(child.Value)
+			case parser.NodeTypeMatch:
+				current = singleMatchRegex(child.Value)
 			case parser.NodeTypeAlternation:
 				var err error
 				current, err = compileAlternation(child, grpNum)
@@ -70,10 +70,10 @@ func compile(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 	return re, nil
 }
 
-func NewSingleCharRegex(c byte) *CompiledRegex {
+func singleMatchRegex(m parser.Matcher) *CompiledRegex {
 	start := NewState()
 	end := NewState()
-	start.AddTransition(end, CharMatcher{Char: c})
+	start.AddTransition(end, CharTransitioner{m})
 
 	return &CompiledRegex{start, end}
 }
@@ -103,9 +103,9 @@ func compileAlternation(node *parser.RegexNode, grpNum *int) (*CompiledRegex, er
 			return nil, err
 		}
 
-		start.AddTransition(subRe.initialState, EpsilonMatcher{})
+		start.AddTransition(subRe.initialState, EpsilonTransitioner{})
 
-		subRe.endingState.AddTransition(end, EpsilonMatcher{})
+		subRe.endingState.AddTransition(end, EpsilonTransitioner{})
 	}
 
 	if node.Capturing {
@@ -128,14 +128,14 @@ func withPlus(base *CompiledRegex) {
 	start := NewState()
 	end := NewState()
 
-	start.AddTransition(base.initialState, EpsilonMatcher{})
-	base.endingState.AddTransition(base.initialState, EpsilonMatcher{})
-	base.endingState.AddTransition(end, EpsilonMatcher{})
+	start.AddTransition(base.initialState, EpsilonTransitioner{})
+	base.endingState.AddTransition(base.initialState, EpsilonTransitioner{})
+	base.endingState.AddTransition(end, EpsilonTransitioner{})
 
 	base.initialState = start
 	base.endingState = end
 }
 
 func withOptional(base *CompiledRegex) {
-	base.initialState.AddTransition(base.endingState, EpsilonMatcher{})
+	base.initialState.AddTransition(base.endingState, EpsilonTransitioner{})
 }

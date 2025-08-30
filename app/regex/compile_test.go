@@ -20,11 +20,11 @@ func TestCompile(t *testing.T) {
 			root: &parser.RegexNode{
 				Type: parser.NodeTypeGroup,
 				Children: []*parser.RegexNode{
-					parser.NewLiteral('a'),
+					parser.NewLiteralMatch('a'),
 				},
 			},
 			want: func() *CompiledRegex {
-				return NewSingleCharRegex('a')
+				return singleMatchRegex(&parser.LiteralMatcher{Char: 'a'})
 			},
 		},
 		{
@@ -32,9 +32,9 @@ func TestCompile(t *testing.T) {
 			root: &parser.RegexNode{
 				Type: parser.NodeTypeGroup,
 				Children: []*parser.RegexNode{
-					parser.NewLiteral('a'),
-					parser.NewLiteral('b'),
-					parser.NewLiteral('c'),
+					parser.NewLiteralMatch('a'),
+					parser.NewLiteralMatch('b'),
+					parser.NewLiteralMatch('c'),
 				},
 			},
 			want: func() *CompiledRegex {
@@ -42,9 +42,10 @@ func TestCompile(t *testing.T) {
 				s1 := NewState()
 				s2 := NewState()
 				s3 := NewState()
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
-				s1.AddTransition(s2, CharMatcher{Char: 'b'})
-				s2.AddTransition(s3, CharMatcher{Char: 'c'})
+				parser.NewLiteralMatch('a')
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s1.AddTransition(s2, literalCharTransitioner('b'))
+				s2.AddTransition(s3, literalCharTransitioner('c'))
 
 				return &CompiledRegex{initialState: s0, endingState: s3}
 			},
@@ -54,7 +55,7 @@ func TestCompile(t *testing.T) {
 			root: &parser.RegexNode{
 				Type: parser.NodeTypeGroup,
 				Children: []*parser.RegexNode{
-					parser.NewLiteral('a').WithQuantifier(parser.QuantifierPlus),
+					parser.NewLiteralMatch('a').WithQuantifier(parser.QuantifierPlus),
 				},
 			},
 			want: func() *CompiledRegex {
@@ -62,10 +63,10 @@ func TestCompile(t *testing.T) {
 				s1 := NewState()
 				s2 := NewState()
 				s3 := NewState()
-				s0.AddTransition(s1, EpsilonMatcher{})
-				s1.AddTransition(s2, CharMatcher{Char: 'a'})
-				s2.AddTransition(s1, EpsilonMatcher{}) // loop back to s1
-				s2.AddTransition(s3, EpsilonMatcher{})
+				s0.AddTransition(s1, EpsilonTransitioner{})
+				s1.AddTransition(s2, literalCharTransitioner('a'))
+				s2.AddTransition(s1, EpsilonTransitioner{}) // loop back to s1
+				s2.AddTransition(s3, EpsilonTransitioner{})
 
 				return &CompiledRegex{initialState: s0, endingState: s3}
 			},
@@ -75,14 +76,14 @@ func TestCompile(t *testing.T) {
 			root: &parser.RegexNode{
 				Type: parser.NodeTypeGroup,
 				Children: []*parser.RegexNode{
-					parser.NewLiteral('a').WithQuantifier(parser.QuantifierOptional),
+					parser.NewLiteralMatch('a').WithQuantifier(parser.QuantifierOptional),
 				},
 			},
 			want: func() *CompiledRegex {
 				s0 := NewState()
 				s1 := NewState()
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
-				s0.AddTransition(s1, EpsilonMatcher{})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s0.AddTransition(s1, EpsilonTransitioner{})
 
 				return &CompiledRegex{initialState: s0, endingState: s1}
 			},
@@ -93,9 +94,9 @@ func TestCompile(t *testing.T) {
 				Type: parser.NodeTypeGroup,
 				Children: []*parser.RegexNode{
 					parser.NewAlternation([]*parser.RegexNode{
-						parser.NewLiteral('a'),
-						parser.NewLiteral('b'),
-						parser.NewLiteral('c'),
+						parser.NewLiteralMatch('a'),
+						parser.NewLiteralMatch('b'),
+						parser.NewLiteralMatch('c'),
 					}),
 				},
 			},
@@ -105,15 +106,15 @@ func TestCompile(t *testing.T) {
 					s[i] = NewState()
 				}
 
-				s[0].AddTransition(s[1], EpsilonMatcher{})
-				s[1].AddTransition(s[2], CharMatcher{Char: 'a'})
-				s[2].AddTransition(s[3], EpsilonMatcher{})
-				s[0].AddTransition(s[4], EpsilonMatcher{})
-				s[4].AddTransition(s[5], CharMatcher{Char: 'b'})
-				s[5].AddTransition(s[3], EpsilonMatcher{})
-				s[0].AddTransition(s[6], EpsilonMatcher{})
-				s[6].AddTransition(s[7], CharMatcher{Char: 'c'})
-				s[7].AddTransition(s[3], EpsilonMatcher{})
+				s[0].AddTransition(s[1], EpsilonTransitioner{})
+				s[1].AddTransition(s[2], literalCharTransitioner('a'))
+				s[2].AddTransition(s[3], EpsilonTransitioner{})
+				s[0].AddTransition(s[4], EpsilonTransitioner{})
+				s[4].AddTransition(s[5], literalCharTransitioner('b'))
+				s[5].AddTransition(s[3], EpsilonTransitioner{})
+				s[0].AddTransition(s[6], EpsilonTransitioner{})
+				s[6].AddTransition(s[7], literalCharTransitioner('c'))
+				s[7].AddTransition(s[3], EpsilonTransitioner{})
 
 				return &CompiledRegex{initialState: s[0], endingState: s[3]}
 			},
@@ -123,16 +124,16 @@ func TestCompile(t *testing.T) {
 			root: &parser.RegexNode{
 				Type: parser.NodeTypeGroup,
 				Children: []*parser.RegexNode{
-					parser.NewLiteral('a'),
-					parser.NewLiteral('b'),
+					parser.NewLiteralMatch('a'),
+					parser.NewLiteralMatch('b'),
 				},
 			},
 			want: func() *CompiledRegex {
 				s0 := NewState()
 				s1 := NewState()
 				s2 := NewState()
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
-				s1.AddTransition(s2, CharMatcher{Char: 'b'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s1.AddTransition(s2, literalCharTransitioner('b'))
 
 				return &CompiledRegex{initialState: s0, endingState: s2}
 			},
@@ -145,8 +146,8 @@ func TestCompile(t *testing.T) {
 					{
 						Type: parser.NodeTypeGroup,
 						Children: []*parser.RegexNode{
-							parser.NewLiteral('a'),
-							parser.NewLiteral('b'),
+							parser.NewLiteralMatch('a'),
+							parser.NewLiteralMatch('b'),
 						},
 						Capturing: true,
 					},
@@ -159,8 +160,8 @@ func TestCompile(t *testing.T) {
 				s2 := NewState()
 				s0.AddStartingGroup("0")
 				s0.AddStartingGroup("1")
-				s0.AddTransition(s1, CharMatcher{Char: 'a'})
-				s1.AddTransition(s2, CharMatcher{Char: 'b'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s1.AddTransition(s2, literalCharTransitioner('b'))
 				s2.AddEndingGroup("1")
 				s2.AddEndingGroup("0")
 
@@ -175,8 +176,8 @@ func TestCompile(t *testing.T) {
 					{
 						Type: parser.NodeTypeGroup,
 						Children: []*parser.RegexNode{
-							parser.NewLiteral('a'),
-							parser.NewLiteral('b'),
+							parser.NewLiteralMatch('a'),
+							parser.NewLiteralMatch('b'),
 						},
 						Quantifier: parser.QuantifierPlus,
 					},
@@ -187,11 +188,11 @@ func TestCompile(t *testing.T) {
 				for i := range s {
 					s[i] = NewState()
 				}
-				s[0].AddTransition(s[1], EpsilonMatcher{})
-				s[1].AddTransition(s[2], CharMatcher{Char: 'a'})
-				s[2].AddTransition(s[3], CharMatcher{Char: 'b'})
-				s[3].AddTransition(s[1], EpsilonMatcher{}) // loop back to s1
-				s[3].AddTransition(s[4], EpsilonMatcher{})
+				s[0].AddTransition(s[1], EpsilonTransitioner{})
+				s[1].AddTransition(s[2], literalCharTransitioner('a'))
+				s[2].AddTransition(s[3], literalCharTransitioner('b'))
+				s[3].AddTransition(s[1], EpsilonTransitioner{}) // loop back to s1
+				s[3].AddTransition(s[4], EpsilonTransitioner{})
 
 				return &CompiledRegex{initialState: s[0], endingState: s[4]}
 			},
@@ -204,8 +205,8 @@ func TestCompile(t *testing.T) {
 					{
 						Type: parser.NodeTypeGroup,
 						Children: []*parser.RegexNode{
-							parser.NewLiteral('a'),
-							parser.NewLiteral('b'),
+							parser.NewLiteralMatch('a'),
+							parser.NewLiteralMatch('b'),
 						},
 						Quantifier: parser.QuantifierPlus,
 						Capturing:  true,
@@ -218,14 +219,14 @@ func TestCompile(t *testing.T) {
 				for i := range s {
 					s[i] = NewState()
 				}
-				s[0].AddTransition(s[1], EpsilonMatcher{})
+				s[0].AddTransition(s[1], EpsilonTransitioner{})
 				s[0].AddStartingGroup("0")
 				s[1].AddStartingGroup("1")
-				s[1].AddTransition(s[2], CharMatcher{Char: 'a'})
-				s[2].AddTransition(s[3], CharMatcher{Char: 'b'})
-				s[3].AddTransition(s[1], EpsilonMatcher{}) // loop back to s1
+				s[1].AddTransition(s[2], literalCharTransitioner('a'))
+				s[2].AddTransition(s[3], literalCharTransitioner('b'))
+				s[3].AddTransition(s[1], EpsilonTransitioner{}) // loop back to s1
 				s[3].AddEndingGroup("1")
-				s[3].AddTransition(s[4], EpsilonMatcher{})
+				s[3].AddTransition(s[4], EpsilonTransitioner{})
 				s[4].AddEndingGroup("0")
 
 				return &CompiledRegex{initialState: s[0], endingState: s[4]}
@@ -242,12 +243,12 @@ func TestCompile(t *testing.T) {
 							{
 								Type: parser.NodeTypeGroup,
 								Children: []*parser.RegexNode{
-									parser.NewLiteral('a'),
-									parser.NewLiteral('b'),
+									parser.NewLiteralMatch('a'),
+									parser.NewLiteralMatch('b'),
 								},
 								Capturing: true,
 							},
-							parser.NewLiteral('c'),
+							parser.NewLiteralMatch('c'),
 						},
 						Quantifier: parser.QuantifierPlus,
 						Capturing:  true,
@@ -261,19 +262,19 @@ func TestCompile(t *testing.T) {
 					s[i] = NewState()
 				}
 				s[0].AddStartingGroup("0")
-				s[0].AddTransition(s[1], EpsilonMatcher{})
-				s[1].AddTransition(s[2], EpsilonMatcher{})
+				s[0].AddTransition(s[1], EpsilonTransitioner{})
+				s[1].AddTransition(s[2], EpsilonTransitioner{})
 				s[1].AddStartingGroup("1")
 				s[2].AddStartingGroup("2")
-				s[2].AddTransition(s[3], CharMatcher{Char: 'a'})
-				s[3].AddTransition(s[4], CharMatcher{Char: 'b'})
-				s[4].AddTransition(s[5], EpsilonMatcher{})
+				s[2].AddTransition(s[3], literalCharTransitioner('a'))
+				s[3].AddTransition(s[4], literalCharTransitioner('b'))
+				s[4].AddTransition(s[5], EpsilonTransitioner{})
 				s[4].AddEndingGroup("2")
-				s[5].AddTransition(s[1], EpsilonMatcher{})
-				s[5].AddTransition(s[6], EpsilonMatcher{})
-				s[1].AddTransition(s[7], EpsilonMatcher{})
-				s[7].AddTransition(s[8], CharMatcher{Char: 'c'})
-				s[8].AddTransition(s[5], EpsilonMatcher{})
+				s[5].AddTransition(s[1], EpsilonTransitioner{})
+				s[5].AddTransition(s[6], EpsilonTransitioner{})
+				s[1].AddTransition(s[7], EpsilonTransitioner{})
+				s[7].AddTransition(s[8], literalCharTransitioner('c'))
+				s[8].AddTransition(s[5], EpsilonTransitioner{})
 				s[5].AddEndingGroup("1")
 				s[6].AddEndingGroup("0")
 
@@ -297,4 +298,8 @@ func TestCompile(t *testing.T) {
 		})
 	}
 
+}
+
+func literalCharTransitioner(char byte) CharTransitioner {
+	return CharTransitioner{&parser.LiteralMatcher{Char: char}}
 }

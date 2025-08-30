@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/codecrafters-io/grep-starter-go/app/parser"
 	"github.com/codecrafters-io/grep-starter-go/app/regex"
 )
 
@@ -23,7 +24,7 @@ func TestMatch(t *testing.T) {
 			re: func() *regex.CompiledRegex {
 				s0 := &regex.State{}
 				s1 := &regex.State{}
-				s0.AddTransition(s1, regex.CharMatcher{Char: 'a'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
 
 				re := &regex.CompiledRegex{}
 				re.SetInitialState(s0)
@@ -42,9 +43,9 @@ func TestMatch(t *testing.T) {
 				s0 := &regex.State{}
 				s1 := &regex.State{}
 				s2 := &regex.State{}
-				s0.AddTransition(s1, regex.CharMatcher{Char: 'a'})
-				s1.AddTransition(s2, regex.CharMatcher{Char: 'b'})
-				s2.AddTransition(s1, regex.EpsilonMatcher{})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s1.AddTransition(s2, literalCharTransitioner('b'))
+				s2.AddTransition(s1, regex.EpsilonTransitioner{})
 
 				re := &regex.CompiledRegex{}
 				re.SetInitialState(s0)
@@ -66,12 +67,12 @@ func TestMatch(t *testing.T) {
 					s[i] = regex.NewState()
 				}
 
-				s[0].AddTransition(s[1], regex.CharMatcher{Char: 'a'})
-				s[0].AddTransition(s[2], regex.CharMatcher{Char: 'b'})
-				s[0].AddTransition(s[3], regex.CharMatcher{Char: 'c'})
-				s[1].AddTransition(s[4], regex.EpsilonMatcher{})
-				s[2].AddTransition(s[4], regex.EpsilonMatcher{})
-				s[3].AddTransition(s[4], regex.EpsilonMatcher{})
+				s[0].AddTransition(s[1], literalCharTransitioner('a'))
+				s[0].AddTransition(s[2], literalCharTransitioner('b'))
+				s[0].AddTransition(s[3], literalCharTransitioner('c'))
+				s[1].AddTransition(s[4], regex.EpsilonTransitioner{})
+				s[2].AddTransition(s[4], regex.EpsilonTransitioner{})
+				s[3].AddTransition(s[4], regex.EpsilonTransitioner{})
 
 				re := &regex.CompiledRegex{}
 				re.SetInitialState(s[0])
@@ -93,11 +94,11 @@ func TestMatch(t *testing.T) {
 				for i := range s {
 					s[i] = regex.NewState()
 				}
-				s[0].AddTransition(s[1], regex.EpsilonMatcher{})
-				s[1].AddTransition(s[2], regex.CharMatcher{Char: 'a'})
-				s[2].AddTransition(s[3], regex.CharMatcher{Char: 'b'})
-				s[3].AddTransition(s[1], regex.EpsilonMatcher{}) // loop back to s1
-				s[3].AddTransition(s[4], regex.EpsilonMatcher{})
+				s[0].AddTransition(s[1], regex.EpsilonTransitioner{})
+				s[1].AddTransition(s[2], literalCharTransitioner('a'))
+				s[2].AddTransition(s[3], literalCharTransitioner('b'))
+				s[3].AddTransition(s[1], regex.EpsilonTransitioner{}) // loop back to s1
+				s[3].AddTransition(s[4], regex.EpsilonTransitioner{})
 
 				re := &regex.CompiledRegex{}
 				re.SetInitialState(s[0])
@@ -121,14 +122,14 @@ func TestMatch(t *testing.T) {
 				for i := range s {
 					s[i] = regex.NewState()
 				}
-				s[0].AddTransition(s[1], regex.EpsilonMatcher{})
-				s[1].AddTransition(s[2], regex.CharMatcher{Char: 'a'})
-				s[2].AddTransition(s[3], regex.CharMatcher{Char: 'b'})
-				s[1].AddTransition(s[4], regex.CharMatcher{Char: 'c'})
-				s[3].AddTransition(s[5], regex.EpsilonMatcher{})
-				s[4].AddTransition(s[5], regex.EpsilonMatcher{})
-				s[5].AddTransition(s[1], regex.EpsilonMatcher{})
-				s[5].AddTransition(s[6], regex.EpsilonMatcher{})
+				s[0].AddTransition(s[1], regex.EpsilonTransitioner{})
+				s[1].AddTransition(s[2], literalCharTransitioner('a'))
+				s[2].AddTransition(s[3], literalCharTransitioner('b'))
+				s[1].AddTransition(s[4], literalCharTransitioner('c'))
+				s[3].AddTransition(s[5], regex.EpsilonTransitioner{})
+				s[4].AddTransition(s[5], regex.EpsilonTransitioner{})
+				s[5].AddTransition(s[1], regex.EpsilonTransitioner{})
+				s[5].AddTransition(s[6], regex.EpsilonTransitioner{})
 
 				re := &regex.CompiledRegex{}
 				re.SetInitialState(s[0])
@@ -183,8 +184,8 @@ func TestMatchWithCaptureGroups(t *testing.T) {
 				s0 := &regex.State{}
 				s1 := &regex.State{}
 				s2 := &regex.State{}
-				s0.AddTransition(s1, regex.CharMatcher{Char: 'a'})
-				s1.AddTransition(s2, regex.CharMatcher{Char: 'b'})
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s1.AddTransition(s2, literalCharTransitioner('b'))
 				s0.AddStartingGroup("0")
 				s0.AddStartingGroup("1")
 				s2.AddEndingGroup("0")
@@ -209,12 +210,12 @@ func TestMatchWithCaptureGroups(t *testing.T) {
 					s[i] = regex.NewState()
 				}
 				s[0].AddStartingGroup("0")
-				s[0].AddTransition(s[1], regex.EpsilonMatcher{})
-				s[1].AddTransition(s[2], regex.CharMatcher{Char: 'a'})
+				s[0].AddTransition(s[1], regex.EpsilonTransitioner{})
+				s[1].AddTransition(s[2], literalCharTransitioner('a'))
 				s[1].AddStartingGroup("1")
-				s[2].AddTransition(s[3], regex.CharMatcher{Char: 'b'})
-				s[3].AddTransition(s[1], regex.EpsilonMatcher{}) // loop back to s1
-				s[3].AddTransition(s[4], regex.EpsilonMatcher{})
+				s[2].AddTransition(s[3], literalCharTransitioner('b'))
+				s[3].AddTransition(s[1], regex.EpsilonTransitioner{}) // loop back to s1
+				s[3].AddTransition(s[4], regex.EpsilonTransitioner{})
 				s[3].AddEndingGroup("1")
 				s[4].AddEndingGroup("0")
 
@@ -237,19 +238,19 @@ func TestMatchWithCaptureGroups(t *testing.T) {
 					s[i] = regex.NewState()
 				}
 				s[0].AddStartingGroup("0")
-				s[0].AddTransition(s[1], regex.EpsilonMatcher{})
-				s[1].AddTransition(s[2], regex.EpsilonMatcher{})
+				s[0].AddTransition(s[1], regex.EpsilonTransitioner{})
+				s[1].AddTransition(s[2], regex.EpsilonTransitioner{})
 				s[1].AddStartingGroup("1")
 				s[2].AddStartingGroup("2")
-				s[2].AddTransition(s[3], regex.CharMatcher{Char: 'a'})
-				s[3].AddTransition(s[4], regex.CharMatcher{Char: 'b'})
-				s[4].AddTransition(s[5], regex.EpsilonMatcher{})
+				s[2].AddTransition(s[3], literalCharTransitioner('a'))
+				s[3].AddTransition(s[4], literalCharTransitioner('b'))
+				s[4].AddTransition(s[5], regex.EpsilonTransitioner{})
 				s[4].AddEndingGroup("2")
-				s[5].AddTransition(s[1], regex.EpsilonMatcher{})
-				s[5].AddTransition(s[6], regex.EpsilonMatcher{})
-				s[1].AddTransition(s[7], regex.EpsilonMatcher{})
-				s[7].AddTransition(s[8], regex.CharMatcher{Char: 'c'})
-				s[8].AddTransition(s[5], regex.EpsilonMatcher{})
+				s[5].AddTransition(s[1], regex.EpsilonTransitioner{})
+				s[5].AddTransition(s[6], regex.EpsilonTransitioner{})
+				s[1].AddTransition(s[7], regex.EpsilonTransitioner{})
+				s[7].AddTransition(s[8], literalCharTransitioner('c'))
+				s[8].AddTransition(s[5], regex.EpsilonTransitioner{})
 				s[5].AddEndingGroup("1")
 				s[6].AddEndingGroup("0")
 
@@ -292,4 +293,8 @@ func TestMatchWithCaptureGroups(t *testing.T) {
 			}
 		})
 	}
+}
+
+func literalCharTransitioner(b byte) regex.Transitioner {
+	return regex.CharTransitioner{Matcher: &parser.LiteralMatcher{Char: b}}
 }
