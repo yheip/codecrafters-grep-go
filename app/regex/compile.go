@@ -16,62 +16,22 @@ func compile(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 	case parser.NodeTypeMatch:
 		re = singleMatchRegex(node.Value)
 		processQuantifier(re, node.Quantifier)
-
 		return re, nil
+	case parser.NodeTypeCaretAnchor:
+		re = singleTransitionRegex(StartOfStringTransitioner{})
+		processQuantifier(re, node.Quantifier)
+		return re, nil
+	case parser.NodeTypeDollorAnchor:
+		re = singleTransitionRegex(EndOfStringTransitioner{})
+		processQuantifier(re, node.Quantifier)
+		return re, nil
+	case parser.NodeTypeAlternation:
+		return compileAlternation(node, grpNum)
 	case parser.NodeTypeGroup:
-		var grpName string
-
-		if node.Capturing {
-			if node.GroupName != "" {
-				grpName = node.GroupName
-			} else {
-				grpName = fmt.Sprintf("%d", *grpNum)
-				*grpNum++
-			}
-		}
-
-		for _, child := range node.Children {
-			var current *CompiledRegex
-			switch child.Type {
-			case parser.NodeTypeMatch:
-				current = singleTransitionRegex(CharTransitioner{child.Value})
-			case parser.NodeTypeCaretAnchor:
-				current = singleTransitionRegex(StartOfStringTransitioner{})
-			case parser.NodeTypeDollorAnchor:
-				current = singleTransitionRegex(EndOfStringTransitioner{})
-			case parser.NodeTypeAlternation:
-				var err error
-				current, err = compileAlternation(child, grpNum)
-				if err != nil {
-					return nil, fmt.Errorf("failed to compile alteration: %w", err)
-				}
-			case parser.NodeTypeGroup:
-				var err error
-				current, err = compile(child, grpNum)
-				if err != nil {
-					return nil, fmt.Errorf("failed to compile child group: %w", err)
-				}
-			default:
-				return nil, fmt.Errorf("unknown expression type in group: %T", child)
-			}
-
-			processQuantifier(current, child.Quantifier)
-
-			if re == nil {
-				re = current
-			} else {
-				// Concatenate re and current
-				re.appendRegex(current)
-			}
-		}
-
-		if node.Capturing {
-			re.initialState.AddStartingGroup(grpName)
-			re.endingState.AddEndingGroup(grpName)
-		}
+		return compileGroup(node, grpNum)
+	default:
+		return nil, fmt.Errorf("unknown expression type: %T", node)
 	}
-
-	return re, nil
 }
 
 // singleTransitionRegex creates a regex with a single transition from start to end
@@ -123,6 +83,44 @@ func compileAlternation(node *parser.RegexNode, grpNum *int) (*CompiledRegex, er
 		re.initialState.AddStartingGroup(grpName)
 		re.endingState.AddEndingGroup(grpName)
 	}
+
+	processQuantifier(re, node.Quantifier)
+
+	return re, nil
+}
+
+func compileGroup(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
+	var grpName string
+	var re *CompiledRegex
+
+	if node.Capturing {
+		if node.GroupName != "" {
+			grpName = node.GroupName
+		} else {
+			grpName = fmt.Sprintf("%d", *grpNum)
+			*grpNum++
+		}
+	}
+
+	for _, child := range node.Children {
+		current, err := compile(child, grpNum)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compile child in group: %w", err)
+		}
+
+		if re == nil {
+			re = current
+		} else {
+			re.appendRegex(current)
+		}
+	}
+
+	if node.Capturing && re != nil {
+		re.initialState.AddStartingGroup(grpName)
+		re.endingState.AddEndingGroup(grpName)
+	}
+
+	processQuantifier(re, node.Quantifier)
 
 	return re, nil
 }
