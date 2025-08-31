@@ -216,6 +216,7 @@ func (p *Parser) parseCharClass() (*RegexNode, error) {
 
 	cg := &CharGroupMatcher{Chars: []byte{}, Ranges: [][2]byte{}, Negate: negate}
 
+	label := ""
 	// collect until ']'
 	for {
 		if p.eof() {
@@ -229,38 +230,48 @@ func (p *Parser) parseCharClass() (*RegexNode, error) {
 			if p.eof() {
 				return nil, p.errorf("incomplete escape in character class")
 			}
-			// Only treat \] or \\ specially; \d/\w inside class are not supported here, treat as literals
-			ch = p.next()
-			cg.Chars = append(cg.Chars, ch)
+			esc := p.next()
+			switch esc {
+			case 'd':
+				cg.Chars = append(cg.Chars, DigitMatcher.Chars...)
+				cg.Ranges = append(cg.Ranges, DigitMatcher.Ranges...)
+				label += DigitMatcher.Label
+			case 'w':
+				cg.Chars = append(cg.Chars, WordMatcher.Chars...)
+				cg.Ranges = append(cg.Ranges, WordMatcher.Ranges...)
+				label += WordMatcher.Label
+			default:
+				cg.Chars = append(cg.Chars, esc)
+				label += string(esc)
+			}
 			continue
 		}
 
 		// Minimal range support: a-b
 		if p.peek() == '-' {
-			// lookahead next-next to ensure it's a proper range like a-b]
-			// consume '-'
 			p.next()
 			if p.eof() {
 				return nil, p.errorf("unterminated range in character class")
 			}
 			end := p.next()
 			if end == ']' {
-				// Treat trailing '-' as literal if immediately before closing bracket
 				cg.Chars = append(cg.Chars, ch, '-')
-				// Put back the ']' by stepping back one pos since we consumed it as end
 				p.pos--
+				label += string(ch) + "-"
 				continue
 			}
 			if end < ch {
-				// swap to ensure valid range
 				ch, end = end, ch
 			}
 			cg.Ranges = append(cg.Ranges, [2]byte{ch, end})
+			label += string(ch) + "-" + string(end)
 			continue
 		}
 
 		cg.Chars = append(cg.Chars, ch)
+		label += string(ch)
 	}
+	cg.Label = label
 
 	// optional quantifier after class
 	node := NewCharGroupMatch(cg)

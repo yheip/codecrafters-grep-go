@@ -116,7 +116,7 @@ func TestParser_Parse_Basic(t *testing.T) {
 			name:    "character class [abc]",
 			pattern: "[abc]",
 			want: func() *RegexNode {
-				cg := &CharGroupMatcher{Chars: []byte{'a', 'b', 'c'}}
+				cg := &CharGroupMatcher{Chars: []byte{'a', 'b', 'c'}, Label: "abc"}
 				return &RegexNode{Type: NodeTypeGroup, Capturing: true, Children: []*RegexNode{
 					NewCharGroupMatch(cg),
 				}}
@@ -126,7 +126,17 @@ func TestParser_Parse_Basic(t *testing.T) {
 			name:    "negated character class [^abc]",
 			pattern: "[^abc]",
 			want: func() *RegexNode {
-				cg := &CharGroupMatcher{Chars: []byte{'a', 'b', 'c'}, Negate: true}
+				cg := &CharGroupMatcher{Chars: []byte{'a', 'b', 'c'}, Negate: true, Label: "abc"}
+				return &RegexNode{Type: NodeTypeGroup, Capturing: true, Children: []*RegexNode{
+					NewCharGroupMatch(cg),
+				}}
+			},
+		},
+		{
+			name:    "character class with \\d and literal",
+			pattern: "[P\\d]",
+			want: func() *RegexNode {
+				cg := &CharGroupMatcher{Chars: []byte{'P'}, Ranges: [][2]byte{{'0', '9'}}, Negate: false, Label: "P\\d"}
 				return &RegexNode{Type: NodeTypeGroup, Capturing: true, Children: []*RegexNode{
 					NewCharGroupMatch(cg),
 				}}
@@ -136,7 +146,7 @@ func TestParser_Parse_Basic(t *testing.T) {
 			name:    "range character class [a-c]",
 			pattern: "[a-c]",
 			want: func() *RegexNode {
-				cg := &CharGroupMatcher{Chars: []byte{}, Ranges: [][2]byte{{'a', 'c'}}}
+				cg := &CharGroupMatcher{Chars: []byte{}, Ranges: [][2]byte{{'a', 'c'}}, Label: "a-c"}
 				return &RegexNode{Type: NodeTypeGroup, Capturing: true, Children: []*RegexNode{
 					NewCharGroupMatch(cg),
 				}}
