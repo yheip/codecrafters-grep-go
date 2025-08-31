@@ -93,6 +93,10 @@ func compileGroup(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 	var grpName string
 	var re *CompiledRegex
 
+	if len(node.Children) == 0 {
+		return singleTransitionRegex(EpsilonTransitioner{}), nil
+	}
+
 	if node.Capturing {
 		if node.GroupName != "" {
 			grpName = node.GroupName

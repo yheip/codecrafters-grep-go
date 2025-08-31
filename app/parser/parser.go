@@ -23,7 +23,7 @@ func (p *Parser) Parse() (*RegexNode, error) {
 
 	// Ensure entire pattern was consumed
 	if p.pos < len(p.pattern) {
-		return nil, p.errorf("unexpected character '%c' at position %d", p.pattern[p.pos], p.pos)
+		return nil, fmt.Errorf("unexpected character '%c' at position %d", p.pattern[p.pos], p.pos)
 	}
 
 	// Top-level must be a capturing group
@@ -132,7 +132,7 @@ func (p *Parser) parseTerm(stop byte) (*RegexNode, error) {
 	case '\\':
 		p.next()
 		if p.eof() {
-			return nil, p.errorf("incomplete escape at end of pattern")
+			return nil, fmt.Errorf("incomplete escape at end of pattern")
 		}
 		esc := p.next()
 		switch esc {
@@ -166,7 +166,7 @@ func (p *Parser) parseTerm(stop byte) (*RegexNode, error) {
 func (p *Parser) parseGroup() (*RegexNode, error) {
 	// consume '('
 	if p.next() != '(' {
-		return nil, p.errorf("expected '(' at position %d", p.pos-1)
+		return nil, fmt.Errorf("expected '(' at position %d", p.pos-1)
 	}
 
 	alt, seq, err := p.parseAlternation(')')
@@ -175,7 +175,7 @@ func (p *Parser) parseGroup() (*RegexNode, error) {
 	}
 
 	if p.peek() != ')' {
-		return nil, p.errorf("unmatched '(' at position %d", p.pos-1)
+		return nil, fmt.Errorf("unmatched '(' at position %d", p.pos-1)
 	}
 	// consume ')'
 	p.next()
@@ -205,7 +205,7 @@ func (p *Parser) parseGroup() (*RegexNode, error) {
 // parseCharClass parses a character class like [abc] or [^abc]. No range parsing required.
 func (p *Parser) parseCharClass() (*RegexNode, error) {
 	if p.next() != '[' { // consume '['
-		return nil, p.errorf("expected '[' at position %d", p.pos-1)
+		return nil, fmt.Errorf("expected '[' at position %d", p.pos-1)
 	}
 
 	negate := false
@@ -220,7 +220,7 @@ func (p *Parser) parseCharClass() (*RegexNode, error) {
 	// collect until ']'
 	for {
 		if p.eof() {
-			return nil, p.errorf("unmatched '[' in character class")
+			return nil, fmt.Errorf("unmatched '[' in character class")
 		}
 		ch := p.next()
 		if ch == ']' {
@@ -228,7 +228,7 @@ func (p *Parser) parseCharClass() (*RegexNode, error) {
 		}
 		if ch == '\\' {
 			if p.eof() {
-				return nil, p.errorf("incomplete escape in character class")
+				return nil, fmt.Errorf("incomplete escape in character class")
 			}
 			esc := p.next()
 			switch esc {
@@ -251,7 +251,7 @@ func (p *Parser) parseCharClass() (*RegexNode, error) {
 		if p.peek() == '-' {
 			p.next()
 			if p.eof() {
-				return nil, p.errorf("unterminated range in character class")
+				return nil, fmt.Errorf("unterminated range in character class")
 			}
 			end := p.next()
 			if end == ']' {
@@ -305,7 +305,3 @@ func (p *Parser) next() byte {
 }
 
 func (p *Parser) eof() bool { return p.pos >= len(p.pattern) }
-
-func (p *Parser) errorf(format string, args ...any) error {
-	return fmt.Errorf(format, args...)
-}

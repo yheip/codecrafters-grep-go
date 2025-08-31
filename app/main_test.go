@@ -22,13 +22,25 @@ func run(t *testing.T, line, pattern string, expected bool) {
 	})
 }
 
+func Test_match_empty_pattern(t *testing.T) {
+	tests := []testcase{
+		{"", "", false},
+		{"abc", "", true},
+		{"123", "", true},
+		{"123", "()", true},
+	}
+
+	for _, tt := range tests {
+		run(t, tt.line, tt.pattern, tt.expected)
+	}
+}
+
 func Test_matchLine(t *testing.T) {
 	t.Run("match a literal character", func(t *testing.T) {
 		tests := []testcase{
-			{"abc", "", true},
-			{"123", "", true},
+			{"abc", "a", true},
+			{"123", "2", true},
 			{"\\", "\\\\", true},
-			{"", "", false},
 		}
 
 		for _, tt := range tests {
@@ -176,27 +188,27 @@ func Test_match_wildcard(t *testing.T) {
 
 func Test_match_alternation(t *testing.T) {
 	tests := []testcase{
-		// {"cat", "(cat|dog)", true},
-		// {"cat", "(cat)s", false},
-		// {"cats", "(cat)+", true},
-		// {"dog", "(cat|dog)", true},
-		// {"bat", "(cat|dog)", false},
-		// {"dog", "(cat|dog)s", false},
-		// {"cat", "c(a|o)t", true},
-		// {"cot", "c(a|o)t", true},
-		// {"cut", "c(a|o)t", false},
-		// {"cat", "c([abc]|[123])t", true},
-		// {"c1t", "c([abc]|[123])t", true},
-		// {"catdog", "(cat|dog|cow)+", true},
-		// {"I see 1 cat", "^I see (\\d (cat|dog|cow)s?)", true},
-		// {"I see 1 cat, ", "^I see (\\d (cat|dog|cow)s?(, | and )?)", true},
-		// {"I see 1 cat and ", "^I see (\\d (cat|dog|cow)s?(, | and )?)", true},
-		// {"I see 1 cat, 2 dog", "^I see (\\d (cat|dog|cow)s?(, | and )?)+", true},
-		// {"I see 1 cat, 2 dogs and 3 cows", "^I see (\\d (cat|dog|cow)s?(, | and )?)+$", true},
-		// {"I see 1 cat, 2 dogs and 3 cows", "^I see (\\d (cat|dog|cow)(, | and )?)+$", false},
-		// {"cat dogs cows", "((cat|dog|cow)( )?)+$", false},
-		// {"ab", "(b)+$", true},
-		// {"ab", "(ab)+$", true},
+		{"cat", "(cat|dog)", true},
+		{"cat", "(cat)s", false},
+		{"cats", "(cat)+", true},
+		{"dog", "(cat|dog)", true},
+		{"bat", "(cat|dog)", false},
+		{"dog", "(cat|dog)s", false},
+		{"cat", "c(a|o)t", true},
+		{"cot", "c(a|o)t", true},
+		{"cut", "c(a|o)t", false},
+		{"cat", "c([abc]|[123])t", true},
+		{"c1t", "c([abc]|[123])t", true},
+		{"catdog", "(cat|dog|cow)+", true},
+		{"I see 1 cat", "^I see (\\d (cat|dog|cow)s?)", true},
+		{"I see 1 cat, ", "^I see (\\d (cat|dog|cow)s?(, | and )?)", true},
+		{"I see 1 cat and ", "^I see (\\d (cat|dog|cow)s?(, | and )?)", true},
+		{"I see 1 cat, 2 dog", "^I see (\\d (cat|dog|cow)s?(, | and )?)+", true},
+		{"I see 1 cat, 2 dogs and 3 cows", "^I see (\\d (cat|dog|cow)s?(, | and )?)+$", true},
+		{"I see 1 cat, 2 dogs and 3 cows", "^I see (\\d (cat|dog|cow)(, | and )?)+$", false},
+		{"cat dogs cows", "((cat|dog|cow)( )?)+$", false},
+		{"ab", "(b)+$", true},
+		{"ab", "(ab)+$", true},
 	}
 
 	for _, tt := range tests {
@@ -207,222 +219,6 @@ func Test_match_alternation(t *testing.T) {
 			}
 			if result != tt.expected {
 				t.Errorf("Expected %v, got %v", tt.expected, result)
-			}
-		})
-	}
-}
-func Test_Compile(t *testing.T) {
-	tests := []struct {
-		pattern string
-		result  *Regex
-	}{
-		// {"", &Regex{tokens: []Class{}}},
-		// {"\\d", &Regex{tokens: []Class{DigitClass{}}}},
-		// {"\\w", &Regex{tokens: []Class{WordClass{}}}},
-		// {"\\w\\d", &Regex{tokens: []Class{WordClass{}, DigitClass{}}}},
-		// {"dog", &Regex{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'}}}},
-		// {"dog$", &Regex{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g', EndAnchor: true}}}},
-		// {"[abc]", &Regex{tokens: []Class{CharGroupClass{chars: []byte{'a', 'b', 'c'}}}}},
-		// {"[^abc]", &Regex{tokens: []Class{CharGroupClass{negate: true, chars: []byte{'a', 'b', 'c'}}}}},
-		// {"^abc", &Regex{tokens: []Class{CharClass{c: 'a'}, CharClass{c: 'b'}, CharClass{c: 'c'}}, matchStart: true}},
-		// {"$", &Regex{tokens: []Class{CharClass{EndAnchor: true}}}},
-		// {"a$", &Regex{tokens: []Class{CharClass{c: 'a', EndAnchor: true}}}},
-		// {".", &Regex{tokens: []Class{WildcardClass{}}}},
-		// {".$", &Regex{tokens: []Class{WildcardClass{EndAnchor: true}}}},
-		// {"a+", &Regex{tokens: []Class{CharClass{c: 'a', Quantifier: Quantifier{atLeastOne: true}}}}},
-		// {"a+$", &Regex{tokens: []Class{CharClass{c: 'a', Quantifier: Quantifier{atLeastOne: true}, EndAnchor: true}}}},
-		// {"a+?", &Regex{tokens: []Class{CharClass{c: 'a', Quantifier: Quantifier{optional: true, atLeastOne: true}}}}},
-		// {"a+?$", &Regex{tokens: []Class{CharClass{c: 'a', Quantifier: Quantifier{optional: true, atLeastOne: true}, EndAnchor: true}}}},
-		{"c[a]+$", &Regex{tokens: []Class{
-			CharClass{c: 'c'},
-			CharGroupClass{chars: []byte{'a'}, Quantifier: Quantifier{atLeastOne: true}, EndAnchor: true},
-		}}},
-		// {"(cat|dog)", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 			{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'}}},
-		// 		},
-		// 	},
-		// }}},
-		// {"(cat|dog)$", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 			{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'}}},
-		// 		},
-		// 		EndAnchor: true,
-		// 	},
-		// }}},
-		// {"my(cat|dog)", &Regex{tokens: []Class{
-		// 	CharClass{c: 'm'},
-		// 	CharClass{c: 'y'},
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 			{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'}}},
-		// 		},
-		// 	},
-		// }}},
-		// {"(cat|dog|bat)s", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 			{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'}}},
-		// 			{tokens: []Class{CharClass{c: 'b'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 		},
-		// 	},
-		// 	CharClass{c: 's'},
-		// }}},
-		// {"(cat|[dog])", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 			{tokens: []Class{CharGroupClass{chars: []byte{'d', 'o', 'g'}}}},
-		// 		},
-		// 	},
-		// }}},
-		// {"(cat)", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 		},
-		// 	},
-		// }}},
-		// {"(cat)?", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 		},
-		// 		Quantifier: Quantifier{optional: true},
-		// 	},
-		// }}},
-		// {"cat(dog)", &Regex{tokens: []Class{
-		// 	CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'},
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'}}},
-		// 		},
-		// 	},
-		// }}},
-		// {"(cat)dog", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 		},
-		// 	},
-		// 	CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'},
-		// }}},
-		// {"(cat(dog)(cow))", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{
-		// 				CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'},
-		// 				GroupClass{
-		// 					alts: []*Regex{
-		// 						{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'}}},
-		// 					},
-		// 				},
-		// 				GroupClass{
-		// 					alts: []*Regex{
-		// 						{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'o'}, CharClass{c: 'w'}}},
-		// 					},
-		// 				},
-		// 			}},
-		// 		},
-		// 	},
-		// }}},
-		// {"((cat|dog|cow)( )?)+$", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{
-		// 				GroupClass{
-		// 					alts: []*Regex{
-		// 						{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 						{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'}}},
-		// 						{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'o'}, CharClass{c: 'w'}}},
-		// 					},
-		// 				},
-		// 				GroupClass{
-		// 					alts: []*Regex{
-		// 						{tokens: []Class{CharClass{c: ' '}}},
-		// 					},
-		// 					Quantifier: Quantifier{optional: true},
-		// 				},
-		// 			}},
-		// 		},
-		// 		Quantifier: Quantifier{atLeastOne: true, optional: false},
-		// 		EndAnchor:  true,
-		// 	},
-		// }}},
-		// {"(\\d (cat|dog|cow)s?(, | and )?)", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{DigitClass{}, CharClass{c: ' '},
-		// 				GroupClass{
-		// 					alts: []*Regex{
-		// 						{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 						{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'}}},
-		// 						{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'o'}, CharClass{c: 'w'}}},
-		// 					},
-		// 				},
-		// 				CharClass{
-		// 					c:          's',
-		// 					Quantifier: Quantifier{true, false},
-		// 				},
-		// 				GroupClass{
-		// 					alts: []*Regex{
-		// 						{tokens: []Class{CharClass{c: ','}, CharClass{c: ' '}}},
-		// 						{tokens: []Class{CharClass{c: ' '}, CharClass{c: 'a'}, CharClass{c: 'n'}, CharClass{c: 'd'}, CharClass{c: ' '}}},
-		// 					},
-		// 					Quantifier: Quantifier{true, false},
-		// 				},
-		// 			}},
-		// 		},
-		// 	},
-		// }}},
-		// {"(\\d (cat|dog|cow)s?(, | and )?)+$", &Regex{tokens: []Class{
-		// 	GroupClass{
-		// 		alts: []*Regex{
-		// 			{tokens: []Class{DigitClass{}, CharClass{c: ' '},
-		// 				GroupClass{
-		// 					alts: []*Regex{
-		// 						{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'a'}, CharClass{c: 't'}}},
-		// 						{tokens: []Class{CharClass{c: 'd'}, CharClass{c: 'o'}, CharClass{c: 'g'}}},
-		// 						{tokens: []Class{CharClass{c: 'c'}, CharClass{c: 'o'}, CharClass{c: 'w'}}},
-		// 					},
-		// 				},
-		// 				CharClass{
-		// 					c:          's',
-		// 					Quantifier: Quantifier{true, false},
-		// 				},
-		// 				GroupClass{
-		// 					alts: []*Regex{
-		// 						{tokens: []Class{CharClass{c: ','}, CharClass{c: ' '}}},
-		// 						{tokens: []Class{CharClass{c: ' '}, CharClass{c: 'a'}, CharClass{c: 'n'}, CharClass{c: 'd'}, CharClass{c: ' '}}},
-		// 					},
-		// 					Quantifier: Quantifier{true, false},
-		// 				},
-		// 			}},
-		// 		},
-		// 		Quantifier: Quantifier{atLeastOne: true},
-		// 		EndAnchor:  true,
-		// 	},
-		// }}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.pattern, func(t *testing.T) {
-			result, err := Compile(tt.pattern)
-			if err != nil {
-				t.Errorf("Error compiling pattern: %v", err)
-			}
-			if len(result.tokens) != len(tt.result.tokens) {
-				t.Errorf("Expected %d tokens, got %d", len(tt.result.tokens), len(result.tokens))
-			}
-
-			if result.String() != tt.result.String() {
-				t.Errorf("Expected %s, got %s", tt.result.String(), result.String())
 			}
 		})
 	}
