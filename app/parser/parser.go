@@ -135,6 +135,20 @@ func (p *Parser) parseTerm(stop byte) (*RegexNode, error) {
 			return nil, fmt.Errorf("incomplete escape at end of pattern")
 		}
 		esc := p.next()
+		// Backreference: \\ followed by one or more digits
+		if esc >= '0' && esc <= '9' {
+			buf := []byte{esc}
+			for {
+				c2 := p.peek()
+				if c2 < '0' || c2 > '9' {
+					break
+				}
+				buf = append(buf, p.next())
+			}
+			node = NewBackreference(string(buf))
+			break
+		}
+
 		switch esc {
 		case 'd':
 			node = NewCharGroupMatch(DigitMatcher)

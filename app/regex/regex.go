@@ -3,6 +3,7 @@ package regex
 import (
 	"fmt"
 	"io"
+	"log/slog"
 )
 
 // CompiledRegex represents a compiled regular expression as an NFA.
@@ -80,10 +81,20 @@ type Transition struct {
 	Transitioner
 }
 
+type MatchArg interface {
+	Pos() int
+	Input() []byte
+	Backreference(name string) (GroupSpan, bool)
+}
+
+type GroupSpan interface {
+	Start() int
+	End() int
+}
+
 // Transitioner defines the interface for transition conditions in the NFA.
 type Transitioner interface {
-	Match(input []byte, pos int) bool
-	Consumable() bool
+	Match(arg MatchArg) (int, bool)
 	Stringer
 }
 
@@ -98,17 +109,15 @@ type CharTransitioner struct {
 	Matcher
 }
 
-func (m CharTransitioner) Match(input []byte, pos int) bool {
+func (m CharTransitioner) Match(arg MatchArg) (int, bool) {
 	// Ensure position is within bounds
+	input, pos := arg.Input(), arg.Pos()
+
 	if pos >= len(input) {
-		return false
+		return 0, false
 	}
 
-	return m.Matcher.Match(input[pos])
-}
-
-func (m CharTransitioner) Consumable() bool {
-	return true
+	return 1, m.Matcher.Match(input[pos])
 }
 
 func (m CharTransitioner) String() string {
@@ -119,12 +128,8 @@ func (m CharTransitioner) String() string {
 // It always matches without consuming any input.
 type EpsilonTransitioner struct{}
 
-func (m EpsilonTransitioner) Match(input []byte, pos int) bool {
-	return true
-}
-
-func (m EpsilonTransitioner) Consumable() bool {
-	return false
+func (m EpsilonTransitioner) Match(arg MatchArg) (int, bool) {
+	return 0, true
 }
 
 func (m EpsilonTransitioner) String() string {
@@ -133,12 +138,8 @@ func (m EpsilonTransitioner) String() string {
 
 type EndOfStringTransitioner struct{}
 
-func (m EndOfStringTransitioner) Match(input []byte, pos int) bool {
-	return pos >= len(input)
-}
-
-func (m EndOfStringTransitioner) Consumable() bool {
-	return false
+func (m EndOfStringTransitioner) Match(arg MatchArg) (int, bool) {
+	return 0, arg.Pos() >= len(arg.Input())
 }
 
 func (m EndOfStringTransitioner) String() string {
@@ -147,16 +148,44 @@ func (m EndOfStringTransitioner) String() string {
 
 type StartOfStringTransitioner struct{}
 
-func (m StartOfStringTransitioner) Match(input []byte, pos int) bool {
-	return pos == 0
-}
-
-func (m StartOfStringTransitioner) Consumable() bool {
-	return false
+func (m StartOfStringTransitioner) Match(arg MatchArg) (int, bool) {
+	return 0, arg.Pos() == 0
 }
 
 func (m StartOfStringTransitioner) String() string {
 	return "^"
+}
+
+type BackreferenceTransitioner struct {
+	GroupName string
+}
+
+func (m BackreferenceTransitioner) Match(arg MatchArg) (int, bool) {
+	slog.Debug("BackreferenceTransitioner", "GroupName", m.GroupName)
+	match, exists := arg.Backreference(m.GroupName)
+	if !exists || match.Start() == -1 || match.End() == -1 {
+		return 0, false
+	}
+	slog.Debug("BackreferenceTransitioner", "match", match, "input", string(arg.Input()), "pos", arg.Pos())
+
+	length := match.End() - match.Start()
+	input, pos := arg.Input(), arg.Pos()
+
+	if pos+length > len(input) {
+		return 0, false
+	}
+
+	for i := range length {
+		if input[match.Start()+i] != input[pos+i] {
+			return 0, false
+		}
+	}
+
+	return length, true
+}
+
+func (m BackreferenceTransitioner) String() string {
+	return fmt.Sprintf(`\%s`, m.GroupName)
 }
 
 func printRegex(w io.Writer, re *CompiledRegex) {

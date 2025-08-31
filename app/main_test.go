@@ -223,3 +223,17 @@ func Test_match_alternation(t *testing.T) {
 		})
 	}
 }
+
+func Test_match_backreference(t *testing.T) {
+	tests := []testcase{
+		{"cat and cat", "(cat) and \\1", true},
+		{"cat and dog", "(cat) and \\1", false},
+		{"cat and cat", "(\\w+) and \\1", true},
+		{"dog and dog", "(\\w+) and \\1", true},
+		{"cat and dog", "(\\w+) and \\1", false},
+	}
+
+	for _, tt := range tests {
+		run(t, tt.line, tt.pattern, tt.expected)
+	}
+}

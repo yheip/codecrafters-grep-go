@@ -15,16 +15,12 @@ func compile(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 	switch node.Type {
 	case parser.NodeTypeMatch:
 		re = singleMatchRegex(node.Value)
-		processQuantifier(re, node.Quantifier)
-		return re, nil
 	case parser.NodeTypeCaretAnchor:
 		re = singleTransitionRegex(StartOfStringTransitioner{})
-		processQuantifier(re, node.Quantifier)
-		return re, nil
 	case parser.NodeTypeDollorAnchor:
 		re = singleTransitionRegex(EndOfStringTransitioner{})
-		processQuantifier(re, node.Quantifier)
-		return re, nil
+	case parser.NodeTypeBackreference:
+		re = singleTransitionRegex(BackreferenceTransitioner{node.GroupName})
 	case parser.NodeTypeAlternation:
 		return compileAlternation(node, grpNum)
 	case parser.NodeTypeGroup:
@@ -32,6 +28,9 @@ func compile(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 	default:
 		return nil, fmt.Errorf("unknown expression type: %T", node)
 	}
+
+	processQuantifier(re, node.Quantifier)
+	return re, nil
 }
 
 // singleTransitionRegex creates a regex with a single transition from start to end

@@ -217,6 +217,9 @@ func transitionersEqual(m1, m2 Transitioner) bool {
 	case EndOfStringTransitioner:
 		_, ok := m2.(EndOfStringTransitioner)
 		return ok
+	case BackreferenceTransitioner:
+		v2, ok := m2.(BackreferenceTransitioner)
+		return ok && v1.GroupName == v2.GroupName
 	}
 
 	return false

@@ -329,6 +329,37 @@ func TestCompile(t *testing.T) {
 				return &CompiledRegex{initialState: s[0], endingState: s[6]}
 			},
 		},
+		{
+			name: "backreference", // (a)\1
+			root: &parser.RegexNode{
+				Type: parser.NodeTypeGroup,
+				Children: []*parser.RegexNode{
+					{
+						Type:      parser.NodeTypeGroup,
+						Children:  []*parser.RegexNode{parser.NewLiteralMatch('a')},
+						Capturing: true,
+					},
+					{
+						Type:      parser.NodeTypeBackreference,
+						GroupName: "1",
+					},
+				},
+				Capturing: true,
+			},
+			want: func() *CompiledRegex {
+				s0 := NewState()
+				s1 := NewState()
+				s2 := NewState()
+				s0.AddStartingGroup("0")
+				s0.AddStartingGroup("1")
+				s0.AddTransition(s1, literalCharTransitioner('a'))
+				s1.AddEndingGroup("1")
+				s1.AddTransition(s2, BackreferenceTransitioner{GroupName: "1"})
+				s2.AddEndingGroup("0")
+
+				return &CompiledRegex{initialState: s0, endingState: s2}
+			},
+		},
 	}
 
 	for _, tt := range tests {
