@@ -10,6 +10,7 @@ const (
 	NodeTypeDollorAnchor
 	NodeTypeAlternation
 	NodeTypeGroup
+	NodeTypeBackreference
 )
 
 type RegexNode struct {
@@ -64,6 +65,13 @@ func NewAlternation(alternatives []*RegexNode) *RegexNode {
 	return &RegexNode{
 		Type:     NodeTypeAlternation,
 		Children: alternatives,
+	}
+}
+
+func NewBackreference(groupName string) *RegexNode {
+	return &RegexNode{
+		Type:      NodeTypeBackreference,
+		GroupName: groupName,
 	}
 }
 

@@ -415,8 +415,8 @@ func TestMatchWithCaptureGroups(t *testing.T) {
 				s[1].AddStartingGroup("2")
 				s[1].AddTransition(s[2], charGroupCharTransitioner(parser.DigitMatcher))
 				s[2].AddEndingGroup("2")
-				s[2].AddTransition(s[3], regex.BackReferenceTransitioner{GroupName: "1"})
-				s[3].AddTransition(s[4], regex.BackReferenceTransitioner{GroupName: "2"})
+				s[2].AddTransition(s[3], regex.BackreferenceTransitioner{GroupName: "1"})
+				s[3].AddTransition(s[4], regex.BackreferenceTransitioner{GroupName: "2"})
 				s[4].AddEndingGroup("0")
 
 				re := &regex.CompiledRegex{}

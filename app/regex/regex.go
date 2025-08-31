@@ -156,17 +156,17 @@ func (m StartOfStringTransitioner) String() string {
 	return "^"
 }
 
-type BackReferenceTransitioner struct {
+type BackreferenceTransitioner struct {
 	GroupName string
 }
 
-func (m BackReferenceTransitioner) Match(arg MatchArg) (int, bool) {
-	slog.Debug("BackReferenceTransitioner", "GroupName", m.GroupName)
+func (m BackreferenceTransitioner) Match(arg MatchArg) (int, bool) {
+	slog.Debug("BackreferenceTransitioner", "GroupName", m.GroupName)
 	match, exists := arg.Backreference(m.GroupName)
 	if !exists || match.Start() == -1 || match.End() == -1 {
 		return 0, false
 	}
-	slog.Debug("BackReferenceTransitioner", "match", match, "input", string(arg.Input()), "pos", arg.Pos())
+	slog.Debug("BackreferenceTransitioner", "match", match, "input", string(arg.Input()), "pos", arg.Pos())
 
 	length := match.End() - match.Start()
 	input, pos := arg.Input(), arg.Pos()
@@ -184,7 +184,7 @@ func (m BackReferenceTransitioner) Match(arg MatchArg) (int, bool) {
 	return length, true
 }
 
-func (m BackReferenceTransitioner) String() string {
+func (m BackreferenceTransitioner) String() string {
 	return fmt.Sprintf(`\%s`, m.GroupName)
 }
 
