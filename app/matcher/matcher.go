@@ -20,6 +20,19 @@ type GroupMatch struct {
 	End   int
 }
 
+type MatchArg struct {
+	input []byte
+	pos   int
+}
+
+func (m MatchArg) Input() []byte {
+	return m.input
+}
+
+func (m MatchArg) Pos() int {
+	return m.pos
+}
+
 func Match(input []byte, re *regex.CompiledRegex) bool {
 	for i := 0; i <= len(input); i++ {
 		if matchedGrp := matchAt(i, input, re); matchedGrp != nil {
@@ -79,22 +92,26 @@ func matchAt(i int, input []byte, re *regex.CompiledRegex) map[string]GroupMatch
 		// Go through transitions in reverse order to maintain the original order when using a stack
 		for _, tr := range slices.Backward(current.state.Transitions) {
 			matchedGroups := maps.Clone(current.matchedGroups) // Clone matched groups for each transition
-			if tr.Match(input, current.idx) {
-				if tr.Consumable() {
-					epilonVisited := map[*regex.State]bool{} // Reset epsilon visited on non-epsilon transitions
-					stack = append(stack, searchState{current.idx + 1, tr.To, epilonVisited, matchedGroups})
+
+			arg := MatchArg{input, current.idx}
+			if n, ok := tr.Match(arg); ok {
+				if n > 0 { // Non-epsilon transition
+					// Reset epsilon visited on non-epsilon transitions
+					epilonVisited := map[*regex.State]bool{}
+					stack = append(stack, searchState{current.idx + n, tr.To, epilonVisited, matchedGroups})
 
 					continue
 
 				}
 
+				// Epsilon transition
 				epilonVisited := maps.Clone(current.epsilonVisited)
-				//.Don't consume input on epsilon transitions
 				if epilonVisited[tr.To] {
 					continue // Avoid infinite loops on epsilon transitions
 				}
 
 				epilonVisited[tr.To] = true
+				//.Don't consume input on epsilon transitions
 				stack = append(stack, searchState{current.idx, tr.To, epilonVisited, matchedGroups})
 			}
 		}

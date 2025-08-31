@@ -80,10 +80,14 @@ type Transition struct {
 	Transitioner
 }
 
+type MatchArg interface {
+	Pos() int
+	Input() []byte
+}
+
 // Transitioner defines the interface for transition conditions in the NFA.
 type Transitioner interface {
-	Match(input []byte, pos int) bool
-	Consumable() bool
+	Match(arg MatchArg) (int, bool)
 	Stringer
 }
 
@@ -98,17 +102,15 @@ type CharTransitioner struct {
 	Matcher
 }
 
-func (m CharTransitioner) Match(input []byte, pos int) bool {
+func (m CharTransitioner) Match(arg MatchArg) (int, bool) {
 	// Ensure position is within bounds
+	input, pos := arg.Input(), arg.Pos()
+
 	if pos >= len(input) {
-		return false
+		return 0, false
 	}
 
-	return m.Matcher.Match(input[pos])
-}
-
-func (m CharTransitioner) Consumable() bool {
-	return true
+	return 1, m.Matcher.Match(input[pos])
 }
 
 func (m CharTransitioner) String() string {
@@ -119,12 +121,8 @@ func (m CharTransitioner) String() string {
 // It always matches without consuming any input.
 type EpsilonTransitioner struct{}
 
-func (m EpsilonTransitioner) Match(input []byte, pos int) bool {
-	return true
-}
-
-func (m EpsilonTransitioner) Consumable() bool {
-	return false
+func (m EpsilonTransitioner) Match(arg MatchArg) (int, bool) {
+	return 0, true
 }
 
 func (m EpsilonTransitioner) String() string {
@@ -133,12 +131,8 @@ func (m EpsilonTransitioner) String() string {
 
 type EndOfStringTransitioner struct{}
 
-func (m EndOfStringTransitioner) Match(input []byte, pos int) bool {
-	return pos >= len(input)
-}
-
-func (m EndOfStringTransitioner) Consumable() bool {
-	return false
+func (m EndOfStringTransitioner) Match(arg MatchArg) (int, bool) {
+	return 0, arg.Pos() >= len(arg.Input())
 }
 
 func (m EndOfStringTransitioner) String() string {
@@ -147,12 +141,8 @@ func (m EndOfStringTransitioner) String() string {
 
 type StartOfStringTransitioner struct{}
 
-func (m StartOfStringTransitioner) Match(input []byte, pos int) bool {
-	return pos == 0
-}
-
-func (m StartOfStringTransitioner) Consumable() bool {
-	return false
+func (m StartOfStringTransitioner) Match(arg MatchArg) (int, bool) {
+	return 0, arg.Pos() == 0
 }
 
 func (m StartOfStringTransitioner) String() string {
