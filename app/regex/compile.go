@@ -132,6 +132,8 @@ func compileGroup(node *parser.RegexNode, grpNum *int) (*CompiledRegex, error) {
 func processQuantifier(base *CompiledRegex, q parser.Quantifier) {
 	if q.Plus() {
 		withPlus(base)
+	} else if q.Asterisk() {
+		withAsterisk(base)
 	} else if q.Optional() {
 		withOptional(base)
 	}
@@ -153,4 +155,10 @@ func withPlus(base *CompiledRegex) {
 // withOptional modifies the base regex to match zero or one time
 func withOptional(base *CompiledRegex) {
 	base.initialState.AddTransition(base.endingState, EpsilonTransitioner{})
+}
+
+// withAsterisk modifies the base regex to match zero or more times
+func withAsterisk(base *CompiledRegex) {
+	withPlus(base)
+	withOptional(base)
 }

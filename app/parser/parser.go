@@ -168,6 +168,9 @@ func (p *Parser) parseTerm(stop byte) (*RegexNode, error) {
 	case '+':
 		node.Quantifier |= QuantifierPlus
 		p.next()
+	case '*':
+		node.Quantifier |= QuantifierAsterisk
+		p.next()
 	case '?':
 		node.Quantifier |= QuantifierOptional
 		p.next()
@@ -207,6 +210,9 @@ func (p *Parser) parseGroup() (*RegexNode, error) {
 	switch p.peek() {
 	case '+':
 		node.Quantifier |= QuantifierPlus
+		p.next()
+	case '*':
+		node.Quantifier |= QuantifierAsterisk
 		p.next()
 	case '?':
 		node.Quantifier |= QuantifierOptional
@@ -292,6 +298,9 @@ func (p *Parser) parseCharClass() (*RegexNode, error) {
 	switch p.peek() {
 	case '+':
 		node.Quantifier |= QuantifierPlus
+		p.next()
+	case '*':
+		node.Quantifier |= QuantifierAsterisk
 		p.next()
 	case '?':
 		node.Quantifier |= QuantifierOptional
