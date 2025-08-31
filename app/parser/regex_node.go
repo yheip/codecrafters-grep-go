@@ -96,6 +96,10 @@ func (q Quantifier) Optional() bool {
 	return q&QuantifierOptional != 0
 }
 
+func (q Quantifier) Asterisk() bool {
+	return q&QuantifierAsterisk != 0
+}
+
 type Matcher interface {
 	Match(c byte) bool
 	String() string

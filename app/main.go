@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -19,7 +20,58 @@ func main() {
 
 	pattern := os.Args[2]
 
-	line, err := io.ReadAll(os.Stdin) // assume we're only dealing with a single line
+	// If files are provided, search within those files line-by-line.
+	if len(os.Args) > 3 {
+		files := os.Args[3:]
+		multi := len(files) > 1
+		foundAny := false
+
+		for _, fname := range files {
+			f, err := os.Open(fname)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: open file %s: %v\n", fname, err)
+				os.Exit(2)
+			}
+
+			scanner := bufio.NewScanner(f)
+			// Increase the buffer limit to handle long lines (up to 10MB)
+			buf := make([]byte, 0, 64*1024)
+			scanner.Buffer(buf, 10*1024*1024)
+
+			for scanner.Scan() {
+				text := scanner.Text()
+				ok, err := matchLine([]byte(text), pattern)
+				if err != nil {
+					_ = f.Close()
+					fmt.Fprintf(os.Stderr, "error: %v\n", err)
+					os.Exit(2)
+				}
+				if ok {
+					foundAny = true
+					if multi {
+						fmt.Printf("%s:%s\n", fname, text)
+					} else {
+						fmt.Println(text)
+					}
+				}
+			}
+
+			if err := scanner.Err(); err != nil {
+				_ = f.Close()
+				fmt.Fprintf(os.Stderr, "error: scan file %s: %v\n", fname, err)
+				os.Exit(2)
+			}
+			_ = f.Close()
+		}
+
+		if !foundAny {
+			os.Exit(1)
+		}
+		return // success
+	}
+
+	// Fallback: read from stdin as a single line (legacy behavior).
+	line, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read input text: %v\n", err)
 		os.Exit(2)
