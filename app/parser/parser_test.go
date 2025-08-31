@@ -77,6 +77,24 @@ func TestParser_Parse_Basic(t *testing.T) {
 		want    func() *RegexNode
 	}{
 		{
+			name:    "backreference \\1",
+			pattern: "\\1",
+			want: func() *RegexNode {
+				return &RegexNode{Type: NodeTypeGroup, Capturing: true, Children: []*RegexNode{
+					NewBackreference("1"),
+				}}
+			},
+		},
+		{
+			name:    "backreference multi-digit \\12",
+			pattern: "\\12",
+			want: func() *RegexNode {
+				return &RegexNode{Type: NodeTypeGroup, Capturing: true, Children: []*RegexNode{
+					NewBackreference("12"),
+				}}
+			},
+		},
+		{
 			name:    "single literal",
 			pattern: "a",
 			want: func() *RegexNode {
