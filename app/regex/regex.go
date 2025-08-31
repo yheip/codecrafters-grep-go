@@ -3,6 +3,7 @@ package regex
 import (
 	"fmt"
 	"io"
+	"log/slog"
 )
 
 // CompiledRegex represents a compiled regular expression as an NFA.
@@ -83,6 +84,12 @@ type Transition struct {
 type MatchArg interface {
 	Pos() int
 	Input() []byte
+	Backreference(name string) (GroupSpan, bool)
+}
+
+type GroupSpan interface {
+	Start() int
+	End() int
 }
 
 // Transitioner defines the interface for transition conditions in the NFA.
@@ -147,6 +154,38 @@ func (m StartOfStringTransitioner) Match(arg MatchArg) (int, bool) {
 
 func (m StartOfStringTransitioner) String() string {
 	return "^"
+}
+
+type BackReferenceTransitioner struct {
+	GroupName string
+}
+
+func (m BackReferenceTransitioner) Match(arg MatchArg) (int, bool) {
+	slog.Debug("BackReferenceTransitioner", "GroupName", m.GroupName)
+	match, exists := arg.Backreference(m.GroupName)
+	if !exists || match.Start() == -1 || match.End() == -1 {
+		return 0, false
+	}
+	slog.Debug("BackReferenceTransitioner", "match", match, "input", string(arg.Input()), "pos", arg.Pos())
+
+	length := match.End() - match.Start()
+	input, pos := arg.Input(), arg.Pos()
+
+	if pos+length > len(input) {
+		return 0, false
+	}
+
+	for i := range length {
+		if input[match.Start()+i] != input[pos+i] {
+			return 0, false
+		}
+	}
+
+	return length, true
+}
+
+func (m BackReferenceTransitioner) String() string {
+	return fmt.Sprintf(`\%s`, m.GroupName)
 }
 
 func printRegex(w io.Writer, re *CompiledRegex) {

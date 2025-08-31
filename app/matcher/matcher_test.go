@@ -400,6 +400,36 @@ func TestMatchWithCaptureGroups(t *testing.T) {
 				{input: []byte("ababc"), want: true, groups: map[string]string{"0": "ababc", "1": "c", "2": "ab"}},
 			},
 		},
+		{
+			name: "backreference to previous group", // (\w)(\d)\1\2
+			re: func() *regex.CompiledRegex {
+				s := make([]*regex.State, 5)
+				for i := range s {
+					s[i] = regex.NewState()
+				}
+
+				s[0].AddStartingGroup("0")
+				s[0].AddStartingGroup("1")
+				s[0].AddTransition(s[1], charGroupCharTransitioner(parser.WordMatcher))
+				s[1].AddEndingGroup("1")
+				s[1].AddStartingGroup("2")
+				s[1].AddTransition(s[2], charGroupCharTransitioner(parser.DigitMatcher))
+				s[2].AddEndingGroup("2")
+				s[2].AddTransition(s[3], regex.BackReferenceTransitioner{GroupName: "1"})
+				s[3].AddTransition(s[4], regex.BackReferenceTransitioner{GroupName: "2"})
+				s[4].AddEndingGroup("0")
+
+				re := &regex.CompiledRegex{}
+				re.SetInitialState(s[0])
+				re.SetEndingState(s[4])
+
+				return re
+			},
+			args: []args{
+				{input: []byte("a1a1"), want: true, groups: map[string]string{"0": "a1a1", "1": "a", "2": "1"}},
+				{input: []byte("a1b2"), want: false},
+			},
+		},
 	}
 
 	for _, tt := range tests {
